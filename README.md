@@ -46,7 +46,7 @@ python3 analysis/analyze.py
 python3 analysis/sheets_export.py
 
 # 4. Run the AI agent pipeline
-python3 agent/agent.py
+python3 agent/pipeline.py
 
 # 5. Launch the Streamlit dashboard
 streamlit run app.py

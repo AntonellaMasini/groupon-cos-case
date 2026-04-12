@@ -11,11 +11,12 @@ from pathlib import Path
 from dotenv import load_dotenv
 import anthropic
 
-# Add project root to path
+# Add project root and agent dir to path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "agent"))
 
-from tools import TOOL_SCHEMAS, TOOL_FUNCTIONS
+from agent.tools import TOOL_SCHEMAS, TOOL_FUNCTIONS
 
 load_dotenv(ROOT / ".env")
 
