@@ -1,0 +1,10 @@
+anthropic
+pandas
+numpy
+streamlit
+gspread
+google-auth
+openpyxl
+python-dotenv
+requests
+scikit-learn
