@@ -1,0 +1,25 @@
+[project]
+name = "groupon-cos-case"
+version = "0.1.0"
+description = "Groupon Chief of Staff Case Study — AI-powered Ops Intelligence Pipeline"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic",
+    "pandas",
+    "numpy",
+    "streamlit",
+    "gspread",
+    "google-auth",
+    "openpyxl",
+    "python-dotenv",
+    "requests",
+    "scikit-learn",
+    "pytest",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["agent*", "analysis*"]

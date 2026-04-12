@@ -9,15 +9,18 @@ import numpy as np
 from pathlib import Path
 from collections import Counter
 import re
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from datetime import datetime
 
 ROOT = Path(__file__).resolve().parent.parent
 CLEAN_PATH = ROOT / "data" / "tickets_clean.csv"
 
+# Module-level data cache to avoid re-reading CSV on every tool call
+_df_cache = None
+
 
 # ─────────────────────────────────────────────────────────────────
-# Opportunity metadata: owners, actions, timelines
+# Opportunity metadata: owners, actions, timelines, root causes
 # ─────────────────────────────────────────────────────────────────
 OPPORTUNITY_META = {
     "chatbot_deflection": {
@@ -25,30 +28,35 @@ OPPORTUNITY_META = {
         "action": "Retrain chatbot on top 3 deflection-ready categories (order_status, account, voucher_problem). Add intent classification layer to route simple tickets to chatbot before BPO queue.",
         "timeline": "SHORT TERM (this month)",
         "kpi": "Chatbot deflection rate from 27.9% to 43%",
+        "root_cause": "Chatbot is only trained on a narrow set of intents — high-volume simple categories (order_status, account) still default to BPO queues instead of chatbot.",
     },
     "agent_copilot": {
         "owner": "Agent Ops Lead",
         "action": "Deploy AI co-pilot for in-house and BPO agents: auto-suggest responses, surface customer history, pre-fill resolution templates. Pilot with top 10 agents first.",
         "timeline": "SHORT TERM (this month)",
         "kpi": "Avg contacts per ticket from 4.1 to 3.5",
+        "root_cause": "Agents lack real-time context — no auto-surfaced customer history or suggested responses, leading to extra back-and-forth contacts per ticket.",
     },
     "urgent_routing": {
         "owner": "Head of CX Ops",
         "action": "Add priority gate in routing engine: block chatbot assignment for urgent/high tickets. Route urgent tickets directly to in-house senior agents.",
         "timeline": "IMMEDIATE (this week)",
         "kpi": "Urgent tickets routed to chatbot from 238 to <10",
+        "root_cause": "Routing engine has no priority gating rule — urgent and high-priority tickets are assigned to AI chatbot identically to low-priority ones.",
     },
     "phone_deflection": {
         "owner": "Channel Strategy Lead",
         "action": "Add IVR prompt offering chat/callback option before phone queue. Launch SMS deflection for order_status and refund categories.",
         "timeline": "MEDIUM TERM (this quarter)",
         "kpi": "Phone ticket share from 20.1% to 16.1%",
+        "root_cause": "No IVR deflection layer — customers calling for simple issues (order status, refunds) are not offered a chat or callback alternative before entering the phone queue.",
     },
     "bpo_vendor_b": {
         "owner": "Vendor Management Lead",
         "action": "Conduct QA audit of Vendor B bottom-10 agents. Implement mandatory retraining on escalation handling. Set 4-week improvement target or trigger contract review.",
         "timeline": "IMMEDIATE (this week)",
         "kpi": "Vendor B CSAT from 3.04 to 3.30",
+        "root_cause": "Vendor B agents have higher contacts-per-ticket (5.4 vs 4.8) and lower resolution quality, suggesting insufficient training on complex ticket categories.",
     },
 }
 
@@ -63,10 +71,18 @@ OPPORTUNITY_ID_MAP = {
 
 
 def _load_data():
-    """Load cleaned ticket data fresh each time."""
-    df = pd.read_csv(CLEAN_PATH)
-    df["created_at"] = pd.to_datetime(df["created_at"])
-    return df
+    """Load cleaned ticket data, cached to avoid repeated disk reads."""
+    global _df_cache
+    if _df_cache is None:
+        _df_cache = pd.read_csv(CLEAN_PATH)
+        _df_cache["created_at"] = pd.to_datetime(_df_cache["created_at"])
+    return _df_cache.copy()
+
+
+def invalidate_cache():
+    """Clear the data cache (call after new data is cleaned)."""
+    global _df_cache
+    _df_cache = None
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -334,13 +350,17 @@ def size_opportunity(opportunity_name):
         target_pct = 0.43
         additional = (target_pct - chatbot_pct) * total
         saving = additional * (bpo_cost - chatbot_cost) * annual_factor
+        base = round(saving)
         return {
             "opportunity": "Expand chatbot deflection",
             "current": f"{chatbot_pct*100:.1f}%",
             "target": f"{target_pct*100:.0f}%",
             "additional_tickets_deflected_4wk": int(additional),
             "saving_per_ticket": round(bpo_cost - chatbot_cost, 2),
-            "annual_savings": round(saving),
+            "annual_savings": base,
+            "range_low": round(base * 0.75),
+            "range_high": round(base * 1.25),
+            "confidence": "Medium — assumes BPO cost structure holds at higher chatbot volume and chatbot quality does not degrade with expanded scope",
             "assumptions": "Deflected tickets come from BPO queues. Cost saving = BPO avg - chatbot avg.",
         }
 
@@ -349,14 +369,18 @@ def size_opportunity(opportunity_name):
         avg_cost = df["cost_usd"].mean()
         target = 3.5
         reduction = avg_contacts - target
-        cost_per_contact = avg_cost / avg_contacts
+        cost_per_contact = avg_cost / avg_contacts if avg_contacts > 0 else 0
         saving = reduction * cost_per_contact * total * annual_factor
+        base = round(saving)
         return {
             "opportunity": "AI agent co-pilot",
             "current_contacts": round(avg_contacts, 2),
             "target_contacts": target,
             "cost_per_contact": round(cost_per_contact, 2),
-            "annual_savings": round(saving),
+            "annual_savings": base,
+            "range_low": round(base * 0.7),
+            "range_high": round(base * 1.3),
+            "confidence": "Medium — assumes co-pilot adoption is consistent across agent tiers and cost scales linearly with contact reduction",
             "assumptions": "Co-pilot reduces avg contacts from current to 3.5. Cost scales linearly with contacts.",
         }
 
@@ -372,12 +396,16 @@ def size_opportunity(opportunity_name):
         abandonment = count * abn_rate * 100  # $100 avg urgent order value
         repeat = count * res_rate * 0.30 * human_cost
         saving = (rework + abandonment + repeat) * annual_factor
+        base = round(saving)
         return {
             "opportunity": "Fix urgent ticket routing",
             "misrouted_tickets_4wk": count,
             "chatbot_escalation_rate": f"{esc_rate*100:.1f}%",
             "chatbot_abandonment_rate": f"{abn_rate*100:.1f}%",
-            "annual_savings": round(saving),
+            "annual_savings": base,
+            "range_low": round(base * 0.8),
+            "range_high": round(base * 1.2),
+            "confidence": "High — routing fix is deterministic; savings depend on escalation and abandonment rates which are directly observed",
             "assumptions": ("Rework cost for escalated tickets + lost revenue from abandoned urgent tickets "
                             "($100 avg order value) + repeat contacts for 30% of poorly resolved tickets."),
         }
@@ -388,13 +416,17 @@ def size_opportunity(opportunity_name):
         deflection_rate = 0.20
         deflected = len(phone) * deflection_rate
         saving = deflected * (phone["cost_usd"].mean() - chat["cost_usd"].mean()) * annual_factor
+        base = round(saving)
         return {
             "opportunity": "Phone to chat deflection",
             "phone_tickets_4wk": len(phone),
             "deflection_target": "20%",
             "phone_cost": round(phone["cost_usd"].mean(), 2),
             "chat_cost": round(chat["cost_usd"].mean(), 2),
-            "annual_savings": round(saving),
+            "annual_savings": base,
+            "range_low": round(base * 0.8),
+            "range_high": round(base * 1.2),
+            "confidence": "Medium — 20% deflection is conservative; actual depends on IVR acceptance rate and customer willingness to switch channels",
             "assumptions": "20% of phone volume migrated to chat. CSAT is similar across both channels.",
         }
 
@@ -402,14 +434,19 @@ def size_opportunity(opportunity_name):
         vb = df[df["assigned_team"] == "bpo_vendorB"]
         va = df[df["assigned_team"] == "bpo_vendorA"]
         contact_saving = vb["contacts_per_ticket"].mean() - va["contacts_per_ticket"].mean()
-        cost_per_contact = vb["cost_usd"].mean() / vb["contacts_per_ticket"].mean()
+        vb_contacts = vb["contacts_per_ticket"].mean()
+        cost_per_contact = vb["cost_usd"].mean() / vb_contacts if vb_contacts > 0 else 0
         saving = contact_saving * cost_per_contact * len(vb) * annual_factor
+        base = round(saving)
         return {
             "opportunity": "BPO Vendor B quality intervention",
-            "vendor_b_contacts": round(vb["contacts_per_ticket"].mean(), 2),
+            "vendor_b_contacts": round(vb_contacts, 2),
             "vendor_a_contacts": round(va["contacts_per_ticket"].mean(), 2),
             "vendor_b_csat": round(vb["csat_score"].mean(), 2),
-            "annual_savings": round(saving),
+            "annual_savings": base,
+            "range_low": round(base * 0.7),
+            "range_high": round(base * 1.3),
+            "confidence": "Low — depends on Vendor B's willingness and ability to retrain; may require contract renegotiation",
             "assumptions": "Reduce Vendor B contacts/ticket to Vendor A level through training/QA intervention.",
         }
 
@@ -431,8 +468,13 @@ def get_weekly_trends():
     df_prior = df[df["week"] == prior]
 
     def calc_metrics(subset):
-        chatbot_count = (subset["assigned_team"] == "ai_chatbot").sum()
+        chatbot_subset = subset[subset["assigned_team"] == "ai_chatbot"]
         phone_count = (subset["channel"] == "phone").sum()
+        # Containment = % of chatbot tickets resolved without escalation
+        chatbot_containment = (
+            round(chatbot_subset["is_resolved"].mean() * 100, 1)
+            if len(chatbot_subset) > 0 else 0.0
+        )
         return {
             "ticket_volume": len(subset),
             "total_cost": round(subset["cost_usd"].sum(), 2),
@@ -441,7 +483,7 @@ def get_weekly_trends():
             "resolution_rate": round(subset["is_resolved"].mean() * 100, 1),
             "escalation_rate": round(subset["is_escalated"].mean() * 100, 1),
             "abandonment_rate": round(subset["is_abandoned"].mean() * 100, 1),
-            "chatbot_containment_pct": round(chatbot_count / len(subset) * 100, 1),
+            "chatbot_containment_pct": chatbot_containment,
             "phone_ticket_pct": round(phone_count / len(subset) * 100, 1),
             "avg_contacts": round(subset["contacts_per_ticket"].mean(), 2),
             "avg_first_response_min": round(subset["first_response_min"].mean(), 1),
@@ -508,14 +550,25 @@ def analyze_customer_messages():
 
     df["clean_msg"] = df["customer_message"].apply(clean_text)
 
-    # Top themes using bigrams across all tickets
-    vectorizer = CountVectorizer(ngram_range=(2, 2), stop_words="english", max_features=200)
-    X = vectorizer.fit_transform(df["clean_msg"])
-    bigram_counts = dict(zip(vectorizer.get_feature_names_out(), X.sum(axis=0).A1))
-    top_themes = sorted(bigram_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    # Top themes using TF-IDF bigrams — surfaces distinguishing themes, not just frequent ones
+    tfidf = TfidfVectorizer(ngram_range=(2, 2), stop_words="english", max_features=200)
+    X_tfidf = tfidf.fit_transform(df["clean_msg"])
+    # Rank by mean TF-IDF score across documents (higher = more distinctive)
+    tfidf_means = dict(zip(tfidf.get_feature_names_out(), X_tfidf.mean(axis=0).A1))
+    # Also get raw counts for reporting
+    count_vec = CountVectorizer(ngram_range=(2, 2), stop_words="english", max_features=200)
+    X_count = count_vec.fit_transform(df["clean_msg"])
+    bigram_counts = dict(zip(count_vec.get_feature_names_out(), X_count.sum(axis=0).A1))
+    # Sort by TF-IDF score but report counts too
+    top_themes = sorted(tfidf_means.items(), key=lambda x: x[1], reverse=True)[:10]
     top_themes_list = [
-        {"theme": theme, "tickets": int(count), "pct_of_total": round(count / len(df) * 100, 1)}
-        for theme, count in top_themes
+        {
+            "theme": theme,
+            "tfidf_score": round(score, 4),
+            "tickets": int(bigram_counts.get(theme, 0)),
+            "pct_of_total": round(bigram_counts.get(theme, 0) / len(df) * 100, 1),
+        }
+        for theme, score in top_themes
     ]
 
     # Week-over-week comparison (W9 vs W10)
@@ -524,6 +577,24 @@ def analyze_customer_messages():
     w_latest = weeks[-1]
     df_prior = df[df["week"] == w_prior]
     df_latest = df[df["week"] == w_latest]
+
+    # Latest-week-only themes (for dashboard display)
+    tfidf_latest = TfidfVectorizer(ngram_range=(2, 2), stop_words="english", max_features=200)
+    X_tfidf_latest = tfidf_latest.fit_transform(df_latest["clean_msg"])
+    tfidf_latest_means = dict(zip(tfidf_latest.get_feature_names_out(), X_tfidf_latest.mean(axis=0).A1))
+    count_latest = CountVectorizer(ngram_range=(2, 2), stop_words="english", max_features=200)
+    X_count_latest = count_latest.fit_transform(df_latest["clean_msg"])
+    latest_counts = dict(zip(count_latest.get_feature_names_out(), X_count_latest.sum(axis=0).A1))
+    top_latest = sorted(tfidf_latest_means.items(), key=lambda x: x[1], reverse=True)[:10]
+    latest_week_themes = [
+        {
+            "theme": theme,
+            "tfidf_score": round(score, 4),
+            "tickets": int(latest_counts.get(theme, 0)),
+            "pct_of_total": round(latest_counts.get(theme, 0) / len(df_latest) * 100, 1),
+        }
+        for theme, score in top_latest
+    ]
 
     # Get bigram frequencies per week
     def get_bigrams(subset):
@@ -585,6 +656,7 @@ def analyze_customer_messages():
 
     return {
         "top_themes": top_themes_list,
+        "latest_week_themes": latest_week_themes,
         "emerging_patterns": emerging,
         "category_keywords": category_keywords,
         "prior_week": int(w_prior),
@@ -656,13 +728,19 @@ def generate_brief(findings=None):
         action = meta.get("action", "Investigate and address root cause")
         timeline = meta.get("timeline", "TBD")
         kpi = meta.get("kpi", "")
+        root_cause = meta.get("root_cause", opp.get("assumptions", "See detail"))
+        range_low = opp.get("range_low", round(opp["annual_savings"] * 0.8))
+        range_high = opp.get("range_high", round(opp["annual_savings"] * 1.2))
+        confidence = opp.get("confidence", "")
 
-        lines.append(f"{i}. **{opp_name}** — ${opp['annual_savings']:,}/yr")
-        lines.append(f"   Root cause: {opp.get('assumptions', 'See detail')}")
+        lines.append(f"{i}. **{opp_name}** — ${opp['annual_savings']:,}/yr (range: ${range_low:,}–${range_high:,})")
+        lines.append(f"   Root cause: {root_cause}")
         lines.append(f"   Action: {action}")
         lines.append(f"   Owner: {owner} | Timeline: {timeline}")
         if kpi:
             lines.append(f"   KPI target: {kpi}")
+        if confidence:
+            lines.append(f"   Confidence: {confidence}")
         lines.append("")
 
     # Week-over-Week Comparison

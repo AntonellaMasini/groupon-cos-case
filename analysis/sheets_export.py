@@ -40,26 +40,6 @@ def col_letter(idx):
     return result
 
 
-def add_conditional_format(worksheet, col_idx, num_rows, threshold, color, condition="less"):
-    """Add conditional formatting to a column."""
-    letter = col_letter(col_idx)
-    range_str = f"{letter}2:{letter}{num_rows + 1}"
-
-    rule_type = "NUMBER_LESS" if condition == "less" else "NUMBER_GREATER"
-
-    rule = {
-        "ranges": [gspread.utils.a1_range_to_grid_range(range_str, worksheet.id)],
-        "booleanRule": {
-            "condition": {
-                "type": rule_type,
-                "values": [{"userEnteredValue": str(threshold)}],
-            },
-            "format": {"backgroundColor": color},
-        },
-    }
-    return rule
-
-
 def write_tab(spreadsheet, tab_name, df):
     """Write a dataframe to a sheet tab with bold headers and frozen row 1."""
     try:
