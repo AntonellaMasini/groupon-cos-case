@@ -560,27 +560,33 @@ with tab2:
 
         # Signal History Trend Charts
         st.subheader("Signal History")
-        st.caption("Tracking how each opportunity's signal moves toward its target over time.")
-        _chart_cols = st.columns(min(len(opps_list), 3))
-        for _ci, opp in enumerate(opps_list):
-            _history = opp.get("signal_history", [])
-            if _history:
+        st.caption("Tracking how each opportunity's signal moves toward its target over time. "
+                    "The dashed line shows the target value.")
+        # Layout: row of 3, then row of 2 (or fewer)
+        _opps_with_history = [o for o in opps_list if o.get("signal_history")]
+        for _row_start in range(0, len(_opps_with_history), 3):
+            _row_opps = _opps_with_history[_row_start:_row_start + 3]
+            _chart_cols = st.columns(3)
+            for _ci, opp in enumerate(_row_opps):
+                _history = opp.get("signal_history", [])
                 sig_def = OPPORTUNITY_SIGNALS.get(opp["id"])
                 _hist_values = [h["value"] for h in _history]
-                _hist_weeks = [f"W{h.get('week', i+1)}" for i, h in enumerate(_history)]
-                _chart_df = pd.DataFrame({"Week": _hist_weeks, "Signal": _hist_values})
-                if sig_def:
-                    _chart_df["Target"] = sig_def["target"]
-                with _chart_cols[_ci % min(len(opps_list), 3)]:
+                # Use week labels from history if available
+                _hist_weeks = [str(h.get("week", f"W{i+1}")) for i, h in enumerate(_history)]
+
+                with _chart_cols[_ci]:
                     _short_title = opp["title"].replace("Fix ", "").replace("Expand ", "")
+                    label_info = signal_labels.get(opp["id"])
                     st.caption(f"**{_short_title}**")
                     if len(_hist_values) >= 2:
-                        _line_data = pd.DataFrame({"Signal": _hist_values})
+                        _line_data = pd.DataFrame(
+                            {"Signal": _hist_values},
+                            index=_hist_weeks,
+                        )
                         if sig_def:
                             _line_data["Target"] = sig_def["target"]
-                        st.line_chart(_line_data, height=150)
+                        st.line_chart(_line_data, height=180)
                     else:
-                        label_info = signal_labels.get(opp["id"])
                         if label_info:
                             _, fmt = label_info
                             st.metric("Current", fmt(_hist_values[0]))

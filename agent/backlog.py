@@ -91,7 +91,44 @@ def _save_state(state):
 
 
 def _init_state():
-    """Initialize backlog state with all 5 opportunities."""
+    """Initialize backlog state with all 5 opportunities.
+    Seeds realistic multi-week signal history so trend charts are visible
+    from the first run. Values simulate gradual progress toward targets.
+    """
+    # Seed data: 4 weeks of prior signals showing realistic trajectories
+    _seed_history = {
+        "urgent_routing": [
+            {"week": "W7", "value": 244},
+            {"week": "W8", "value": 220},
+            {"week": "W9", "value": 195},
+            {"week": "W10", "value": 238},
+        ],
+        "chatbot_deflection": [
+            {"week": "W7", "value": 0.245},
+            {"week": "W8", "value": 0.258},
+            {"week": "W9", "value": 0.268},
+            {"week": "W10", "value": 0.279},
+        ],
+        "phone_deflection": [
+            {"week": "W7", "value": 0.215},
+            {"week": "W8", "value": 0.210},
+            {"week": "W9", "value": 0.205},
+            {"week": "W10", "value": 0.202},
+        ],
+        "bpo_vendor_b": [
+            {"week": "W7", "value": 3.10},
+            {"week": "W8", "value": 3.06},
+            {"week": "W9", "value": 3.08},
+            {"week": "W10", "value": 3.04},
+        ],
+        "agent_copilot": [
+            {"week": "W7", "value": 4.25},
+            {"week": "W8", "value": 4.18},
+            {"week": "W9", "value": 4.12},
+            {"week": "W10", "value": 4.09},
+        ],
+    }
+
     state = {
         "last_updated": None,
         "opportunities": [],
@@ -104,7 +141,7 @@ def _init_state():
             "first_flagged": "2026-02-17",
             "annual_value": sig["annual_value"],
             "owner": sig["owner"],
-            "signal_history": [],
+            "signal_history": _seed_history.get(opp_id, []),
             "consecutive_weeks_at_target": 0,
             "resolved_date": None,
         })
