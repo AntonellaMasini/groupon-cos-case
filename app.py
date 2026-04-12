@@ -222,7 +222,177 @@ with tab1:
     brief_path = ROOT / "output" / "weekly_brief.md"
     if brief_path.exists():
         brief_text = brief_path.read_text()
-        st.markdown(brief_text)
+
+        # Parse the brief into sections for structured rendering
+        import re as _re
+        _sections = {}
+        _current_section = None
+        _section_lines = []
+        for _line in brief_text.split("\n"):
+            if _line.startswith("## "):
+                if _current_section is not None:
+                    _sections[_current_section] = "\n".join(_section_lines)
+                _current_section = _line[3:].strip()
+                _section_lines = []
+            elif _line.startswith("# "):
+                # Title line — render directly
+                st.title(_line[2:].strip())
+            else:
+                _section_lines.append(_line)
+        if _current_section:
+            _sections[_current_section] = "\n".join(_section_lines)
+
+        # --- Subtitle (Week N | Generated ...) ---
+        for _sec_name in list(_sections.keys()):
+            if _sec_name.startswith("Week"):
+                st.subheader(_sec_name)
+                del _sections[_sec_name]
+                break
+
+        # --- Executive Summary ---
+        if "Executive Summary" in _sections:
+            st.subheader("Executive Summary")
+            st.markdown(_sections["Executive Summary"].strip())
+            st.divider()
+
+        # --- Top 5 Issues This Week (structured cards) ---
+        if "Top 5 Issues This Week" in _sections:
+            st.subheader("Top 5 Issues This Week")
+            _issues_text = _sections["Top 5 Issues This Week"].strip()
+            # Parse numbered issues into individual blocks
+            _issue_blocks = _re.split(r"\n(?=\d+\.\s)", _issues_text)
+            for _block in _issue_blocks:
+                _block = _block.strip()
+                if not _block:
+                    continue
+                # Skip the "Ranked by..." subtitle
+                if _block.startswith("*Ranked"):
+                    st.caption(_block.strip("*"))
+                    continue
+                # Parse issue: "1. **Name** — $X/yr (range: ...)\n   Root cause: ...\n   ..."
+                _header_match = _re.match(r"(\d+)\.\s+\*\*(.+?)\*\*\s*—\s*(.+?)(?:\n|$)", _block)
+                if _header_match:
+                    _num = _header_match.group(1)
+                    _name = _header_match.group(2)
+                    _value = _header_match.group(3).split("\n")[0].strip()
+                    # Extract detail lines
+                    _detail_lines = _block[_header_match.end():].strip().split("\n")
+                    _root_cause = ""
+                    _action = ""
+                    _owner_timeline = ""
+                    _kpi = ""
+                    _confidence = ""
+                    for _dl in _detail_lines:
+                        _dl = _dl.strip()
+                        if _dl.startswith("Root cause:"):
+                            _root_cause = _dl[len("Root cause:"):].strip()
+                        elif _dl.startswith("Action:"):
+                            _action = _dl[len("Action:"):].strip()
+                        elif _dl.startswith("Owner:"):
+                            _owner_timeline = _dl
+                        elif _dl.startswith("KPI target:"):
+                            _kpi = _dl[len("KPI target:"):].strip()
+                        elif _dl.startswith("Confidence:"):
+                            _confidence = _dl[len("Confidence:"):].strip()
+
+                    _safe_value = _value.replace("$", "\\$")
+                    with st.expander(f"**{_num}. {_name}** — {_safe_value}", expanded=True):
+                        if _root_cause:
+                            st.markdown(f"**Root cause:** {_root_cause}")
+                        if _action:
+                            st.markdown(f"**Action:** {_action}")
+                        if _owner_timeline:
+                            st.markdown(f"**{_owner_timeline}**")
+                        if _kpi:
+                            st.markdown(f"**KPI target:** {_kpi}")
+                        if _confidence:
+                            st.caption(f"Confidence: {_confidence}")
+                else:
+                    st.markdown(_block)
+            st.divider()
+
+        # --- Week-over-Week Comparison (already a markdown table — render as-is) ---
+        if "Week-over-Week Comparison" in _sections:
+            st.subheader("Week-over-Week Comparison")
+            st.markdown(_sections["Week-over-Week Comparison"].strip())
+            st.divider()
+
+        # --- Recommended Actions ---
+        if "Recommended Actions This Week" in _sections:
+            st.subheader("Recommended Actions This Week")
+            st.markdown(_sections["Recommended Actions This Week"].strip())
+            st.divider()
+
+        # --- Watch List — Emerging Patterns (table) ---
+        _watch_key = [k for k in _sections if "Watch List" in k]
+        if _watch_key:
+            st.subheader("Watch List — Emerging Patterns")
+            _watch_text = _sections[_watch_key[0]].strip()
+            # Parse into rows: "- **theme**: grew X% WoW (...)\n  Why it matters: ..."
+            _watch_items = _re.split(r"\n(?=-\s\*\*)", _watch_text)
+            _watch_rows = []
+            for _item in _watch_items:
+                _item = _item.strip()
+                if not _item:
+                    continue
+                _m = _re.match(
+                    r"-\s+\*\*(.+?)\*\*:\s+(?:grew|moved)\s+([\d.+%-]+)%?\s+(?:WoW\s+)?\((.+?)\)",
+                    _item,
+                )
+                _why_match = _re.search(r"Why it matters:\s*(.+)", _item)
+                if _m:
+                    _watch_rows.append({
+                        "Pattern": _m.group(1),
+                        "Change": _m.group(2) if "%" in _m.group(2) else f"+{_m.group(2)}%",
+                        "Detail": _m.group(3),
+                        "Why It Matters": _why_match.group(1).strip() if _why_match else "",
+                    })
+            if _watch_rows:
+                st.dataframe(
+                    pd.DataFrame(_watch_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            else:
+                st.markdown(_watch_text)
+            st.divider()
+
+        # --- Data Quality Notes (table) ---
+        if "Data Quality Notes" in _sections:
+            st.subheader("Data Quality Notes")
+            _dq_text = _sections["Data Quality Notes"].strip()
+            _dq_lines = [l.strip().lstrip("- ") for l in _dq_text.split("\n") if l.strip().startswith("-")]
+            if _dq_lines:
+                _dq_rows = []
+                for _dl in _dq_lines:
+                    # Try to split on ":" for label/value
+                    if ": " in _dl:
+                        _parts = _dl.split(": ", 1)
+                        _severity = "🔴 Critical" if "CRITICAL" in _parts[0] else \
+                                    "🟠 Warning" if "WARNING" in _parts[0] else "ℹ️ Info"
+                        _label = _parts[0].replace("CRITICAL", "").replace("WARNING", "").strip()
+                        if not _label:
+                            _dq_rows.append({
+                                "Severity": _severity,
+                                "Note": _parts[1],
+                                "Detail": "",
+                            })
+                        else:
+                            _dq_rows.append({
+                                "Severity": _severity,
+                                "Note": _label,
+                                "Detail": _parts[1],
+                            })
+                    else:
+                        _dq_rows.append({"Severity": "ℹ️ Info", "Note": _dl, "Detail": ""})
+                st.dataframe(
+                    pd.DataFrame(_dq_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            else:
+                st.markdown(_dq_text)
+
         mod_time = time.strftime("%Y-%m-%d %H:%M", time.localtime(brief_path.stat().st_mtime))
         st.caption(f"Last generated: {mod_time}")
     else:
