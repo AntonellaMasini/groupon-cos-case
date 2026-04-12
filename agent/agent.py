@@ -15,7 +15,7 @@ import anthropic
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from agent.tools import TOOL_SCHEMAS, TOOL_FUNCTIONS
+from tools import TOOL_SCHEMAS, TOOL_FUNCTIONS
 
 load_dotenv(ROOT / ".env")
 
