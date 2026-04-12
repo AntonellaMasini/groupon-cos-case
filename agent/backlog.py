@@ -223,15 +223,32 @@ def update_backlog(df):
 # ─────────────────────────────────────────────────────────────────
 def find_new_priorities(df, backlog):
     """Find new candidate priorities from anomaly detection and NLP themes."""
-    # Get current tracked IDs
+    # Get current tracked IDs + keywords from their titles to catch duplicates
+    # with different IDs (e.g., "bpo_vendor_b" vs "vendor_b_quality")
     tracked_ids = {opp["id"] for opp in backlog["opportunities"]}
+    tracked_keywords = set()
+    for opp in backlog["opportunities"]:
+        # Extract keywords from title and ID for fuzzy matching
+        for word in opp["id"].split("_") + opp["title"].lower().split():
+            if len(word) > 3:  # skip short words like "to", "of", etc.
+                tracked_keywords.add(word)
+
+    def _overlaps_tracked(candidate_id, candidate_title):
+        """Check if a candidate is already covered by an active opportunity."""
+        if candidate_id in tracked_ids:
+            return True
+        # Check if candidate shares keywords with tracked items
+        candidate_words = set(candidate_id.split("_") + candidate_title.lower().split())
+        overlap = candidate_words & tracked_keywords
+        # If 2+ meaningful keywords overlap, it's likely a duplicate
+        return len(overlap) >= 2
 
     candidates = []
 
     # 1. Check statistical anomalies
     anomaly_result = flag_anomalies()
     for anomaly in anomaly_result["anomalies"]:
-        if anomaly["id"] in tracked_ids:
+        if _overlaps_tracked(anomaly["id"], anomaly["title"]):
             continue
         if anomaly["severity"] not in ("critical", "high"):
             continue
@@ -252,7 +269,7 @@ def find_new_priorities(df, backlog):
             continue
 
         pattern_id = f"nlp_{pattern['theme'].replace(' ', '_')}"
-        if pattern_id in tracked_ids:
+        if _overlaps_tracked(pattern_id, pattern["theme"]):
             continue
 
         candidates.append({
