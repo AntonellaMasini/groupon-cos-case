@@ -455,19 +455,23 @@ with tab4:
         for i, entry in enumerate(pipeline_log):
             entry_type = entry["type"]
             detail = entry["detail"]
+            # Escape $ signs so Streamlit doesn't interpret them as LaTeX
+            safe_detail = detail.replace("$", "\\$") if isinstance(detail, str) else detail
 
             if entry_type == "tool_call":
                 st.code(f"[TOOL] {detail}", language=None)
             elif entry_type == "tool_result":
                 st.code(f"[RESULT] {detail}", language=None)
             elif entry_type == "system":
-                st.info(f"{detail}")
+                st.info(f"{safe_detail}")
             elif entry_type == "thinking":
-                st.write(f"**Agent reasoning:** {detail}")
+                st.write(f"**Agent reasoning:** {safe_detail}")
             elif entry_type == "final":
-                st.success(f"**Final:** {detail}")
+                st.success(f"**Final:** {safe_detail}")
+            elif entry_type == "guardrail":
+                st.info(f"**Guardrail:** {safe_detail}")
             else:
-                st.write(detail)
+                st.write(safe_detail)
     else:
         # Try to load from agent's pipeline log
         try:
@@ -478,12 +482,15 @@ with tab4:
                 for entry in log:
                     entry_type = entry["type"]
                     detail = entry["detail"]
+                    safe_detail = detail.replace("$", "\\$") if isinstance(detail, str) else detail
                     if entry_type == "thinking":
-                        st.write(f"**Agent reasoning:** {detail}")
+                        st.write(f"**Agent reasoning:** {safe_detail}")
                     elif entry_type in ("tool_call", "tool_result"):
                         st.code(f"[{entry_type.upper()}] {detail}", language=None)
+                    elif entry_type == "guardrail":
+                        st.info(f"**Guardrail:** {safe_detail}")
                     else:
-                        st.write(detail)
+                        st.write(safe_detail)
             else:
                 st.info("No pipeline log yet. Click **Run Analysis** in the sidebar.")
         except Exception:
