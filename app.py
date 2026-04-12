@@ -340,7 +340,7 @@ with tab3:
                     label=label,
                     value=f"{prefix}{curr}{suffix_str}",
                     delta=f"{delta:+.1f}% ({direction})",
-                    delta_color="inverse" if key in ["avg_cost_per_ticket", "escalation_rate", "abandonment_rate", "phone_ticket_pct"] else "normal",
+                    delta_color="inverse" if key in ["avg_cost_per_ticket", "escalation_rate", "abandonment_rate", "phone_ticket_pct", "avg_contacts"] else "normal",
                 )
 
         st.divider()
