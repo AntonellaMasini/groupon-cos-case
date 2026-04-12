@@ -198,108 +198,35 @@ def key_anomalies(df):
 # 3f. Opportunity Sizing
 # ─────────────────────────────────────────────────────────────────
 def opportunity_sizing(df):
+    """Size all opportunities using the canonical formulas from agent/tools.py."""
     print("\n══ 3f. OPPORTUNITY SIZING ══════════════════════════════")
 
-    total_tickets_4wk = len(df)
-    annual_factor = 13  # 52 weeks / 4 weeks
+    # Import from the single source of truth to avoid duplicate formulas
+    import sys
+    sys.path.insert(0, str(ROOT))
+    from agent.tools import size_opportunity
 
-    # Current baselines
-    chatbot = df[df["assigned_team"] == "ai_chatbot"]
-    chatbot_pct = len(chatbot) / total_tickets_4wk
-    chatbot_cost = chatbot["cost_usd"].mean()
-    non_chatbot = df[df["assigned_team"] != "ai_chatbot"]
-    non_chatbot_cost = non_chatbot["cost_usd"].mean()
-
-    avg_contacts = df["contacts_per_ticket"].mean()
-    avg_cost_per_ticket = df["cost_usd"].mean()
-
-    urgent_chatbot = df[(df["priority"] == "urgent") & (df["assigned_team"] == "ai_chatbot")]
-    urgent_chatbot_count = len(urgent_chatbot)
-    urgent_proper_cost = df[(df["priority"] == "urgent") & (df["assigned_team"] == "in_house")]["cost_usd"].mean()
-
-    phone = df[df["channel"] == "phone"]
-    chat = df[df["channel"] == "chat"]
-    phone_cost = phone["cost_usd"].mean()
-    chat_cost = chat["cost_usd"].mean()
-    phone_count_4wk = len(phone)
-
-    vendor_b = df[df["assigned_team"] == "bpo_vendorB"]
-    vendor_a = df[df["assigned_team"] == "bpo_vendorA"]
-    vb_contacts = vendor_b["contacts_per_ticket"].mean()
-    va_contacts = vendor_a["contacts_per_ticket"].mean()
-    vb_cost = vendor_b["cost_usd"].mean()
-
-    # OPP 1: Expand chatbot deflection from current ~27.9% to 43%
-    # Assumption: deflected tickets come from BPO queues (not in-house)
-    target_chatbot_pct = 0.43
-    additional_deflected_4wk = (target_chatbot_pct - chatbot_pct) * total_tickets_4wk
-    bpo_avg_cost = (len(vendor_a) * vendor_a["cost_usd"].mean()
-                    + len(vendor_b) * vendor_b["cost_usd"].mean()) / (len(vendor_a) + len(vendor_b))
-    saving_per_ticket = bpo_avg_cost - chatbot_cost
-    opp1_annual = additional_deflected_4wk * saving_per_ticket * annual_factor
-
-    # OPP 2: AI agent co-pilot reduces contacts from ~4.1 to 3.5
-    target_contacts = 3.5
-    contact_reduction = avg_contacts - target_contacts
-    cost_per_contact = avg_cost_per_ticket / avg_contacts
-    opp2_annual = contact_reduction * cost_per_contact * total_tickets_4wk * annual_factor
-
-    # OPP 3: Fix urgent routing — reroute 238 misrouted urgent tickets
-    # Chatbot can't properly handle urgent issues: 54% resolution vs 73% in-house
-    # Three cost drivers:
-    #   1. Rework: escalated tickets need full human re-handling
-    #   2. Abandonment: customers who give up represent lost transaction value
-    #   3. Repeat contacts: poorly "resolved" urgent tickets generate callbacks
-    urgent_chatbot_esc_rate = urgent_chatbot["is_escalated"].mean()
-    urgent_chatbot_abn_rate = urgent_chatbot["is_abandoned"].mean()
-    urgent_chatbot_res_rate = urgent_chatbot["is_resolved"].mean()
-    inhouse_urgent = df[(df["priority"] == "urgent") & (df["assigned_team"] == "in_house")]
-    inhouse_esc_rate = inhouse_urgent["is_escalated"].mean()
-    inhouse_abn_rate = inhouse_urgent["is_abandoned"].mean()
-    human_handling_cost = non_chatbot_cost  # avg cost when a human handles the ticket
-
-    # 1. Rework: escalated tickets are double-handled (chatbot + human)
-    rework_4wk = urgent_chatbot_count * urgent_chatbot_esc_rate * human_handling_cost
-    # 2. Abandonment: urgent tickets should never be abandoned — all abandonment
-    #    is attributable to misrouting. Urgent transactions are higher value (~$100).
-    avg_urgent_order_value = 100.0
-    abandonment_4wk = urgent_chatbot_count * urgent_chatbot_abn_rate * avg_urgent_order_value
-    # 3. Repeat contacts: ~30% of chatbot "resolved" urgent tickets generate callbacks
-    repeat_rate = 0.30
-    repeat_4wk = (urgent_chatbot_count * urgent_chatbot_res_rate
-                  * repeat_rate * human_handling_cost)
-    opp3_annual = (rework_4wk + abandonment_4wk + repeat_4wk) * annual_factor
-
-    # OPP 4: Phone to chat deflection — move 20% of phone volume to chat
-    deflection_rate = 0.20
-    deflected_4wk = phone_count_4wk * deflection_rate
-    opp4_annual = deflected_4wk * (phone_cost - chat_cost) * annual_factor
-
-    # OPP 5: BPO Vendor B intervention — reduce contacts to Vendor A level
-    vb_count_4wk = len(vendor_b)
-    contact_saving = vb_contacts - va_contacts
-    cost_per_contact_vb = vb_cost / vb_contacts
-    opp5_annual = contact_saving * cost_per_contact_vb * vb_count_4wk * annual_factor
-
-    opps = [
-        ("OPP 1: Expand chatbot deflection 27.9% → 43%", opp1_annual),
-        ("OPP 2: AI agent co-pilot contacts 4.1 → 3.5", opp2_annual),
-        ("OPP 3: Fix urgent routing misrouted tickets", opp3_annual),
-        ("OPP 4: Phone to chat deflection 20%", opp4_annual),
-        ("OPP 5: BPO Vendor B intervention", opp5_annual),
+    opp_names = [
+        "chatbot_deflection", "agent_copilot", "urgent_routing",
+        "phone_deflection", "bpo_vendor_b",
     ]
 
+    opps = []
     total = 0
-    for label, val in opps:
-        print(f"  {label:<50} ${val:>10,.0f}/yr")
-        total += val
-    print(f"  {'─' * 62}")
-    print(f"  {'TOTAL ANNUAL OPPORTUNITY':<50} ${total:>10,.0f}/yr")
+    for name in opp_names:
+        result = size_opportunity(name)
+        label = result["opportunity"]
+        savings = result["annual_savings"]
+        range_low = result.get("range_low", "")
+        range_high = result.get("range_high", "")
+        print(f"  {label:<50} ${savings:>10,}/yr  (range: ${range_low:,}–${range_high:,})")
+        opps.append({"opportunity": label, "annual_savings_usd": savings})
+        total += savings
 
-    opp_df = pd.DataFrame([
-        {"opportunity": label, "annual_savings_usd": round(val)}
-        for label, val in opps
-    ])
+    print(f"  {'─' * 62}")
+    print(f"  {'TOTAL ANNUAL OPPORTUNITY':<50} ${total:>10,}/yr")
+
+    opp_df = pd.DataFrame(opps)
     opp_df.loc[len(opp_df)] = {"opportunity": "TOTAL", "annual_savings_usd": round(total)}
     return opp_df
 
@@ -328,7 +255,7 @@ def main():
         anomalies_df.to_excel(writer, sheet_name="Anomalies", index=False)
         opps_df.to_excel(writer, sheet_name="Opportunity Sizing", index=False)
 
-    print(f"\n✓ All results saved to {OUTPUT_PATH}")
+    print(f"\n  All results saved to {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":

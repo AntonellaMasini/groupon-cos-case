@@ -63,7 +63,11 @@ def main():
     for wk, cnt in week_counts_before.items():
         print(f"  W{wk}: {cnt:,}")
 
-    df = df[df["week"].isin([7, 8, 9, 10])].copy()
+    # Dynamically exclude partial weeks (< 50% of median week volume)
+    week_counts = df["week"].value_counts()
+    median_count = week_counts.median()
+    valid_weeks = week_counts[week_counts > median_count * 0.5].index
+    df = df[df["week"].isin(valid_weeks)].copy()
 
     week_counts_after = df["week"].value_counts().sort_index()
     print("\nTicket count per week (after, W7-W10 only):")
@@ -83,7 +87,7 @@ def main():
     print(f"is_high_touch: {df['is_high_touch'].sum():,}")
 
     # ── 8. Data quality report ───────────────────────────────────
-    raw_count = 10_000
+    raw_count = len(pd.read_csv(RAW_PATH))
     clean_count = len(df)
     missing_subcat = df["subcategory"].isnull().sum()
     missing_csat = df["csat_score"].isnull().sum()
