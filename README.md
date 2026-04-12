@@ -34,9 +34,9 @@ Analysis of 4 weeks of ticket data (9,776 clean tickets) identified **5 improvem
 |---|-------------|---------------|----------------|-------|
 | 1 | Chatbot deflection | Route more simple tickets to AI chatbot instead of expensive human agents | $67,328 | $50K-$84K |
 | 2 | Agent co-pilot | Give human agents an AI sidebar that suggests responses, reducing back-and-forth per ticket | $59,886 | $42K-$78K |
-| 3 | Urgent routing fix | Stop sending urgent tickets to the chatbot -- route them to senior human agents | $39,828 | $32K-$48K |
-| 4 | Phone-to-chat deflection | Redirect phone callers to chat -- same satisfaction, 3.5x cheaper | $19,566 | $16K-$23K |
-| 5 | Vendor B quality | Train/QA Vendor B agents to match Vendor A -- fewer contacts, better CSAT | $8,255 | $6K-$11K |
+| 3 | Urgent routing fix | Stop sending urgent tickets to the chatbot; route them to senior human agents | $39,828 | $32K-$48K |
+| 4 | Phone-to-chat deflection | Redirect phone callers to chat — same satisfaction, 3.5x cheaper | $19,566 | $16K-$23K |
+| 5 | Vendor B quality | Train/QA Vendor B agents to match Vendor A — fewer contacts, better CSAT | $8,255 | $6K-$11K |
 
 **Critical anomaly:** 238 urgent tickets were misrouted to the AI chatbot (54% resolution vs 72% for human agents). This is a config fix that can ship this week.
 
@@ -46,25 +46,25 @@ Analysis of 4 weeks of ticket data (9,776 clean tickets) identified **5 improvem
 
 The AI agent has **7 tools** but is NOT following a script. Claude autonomously decides which tools to call and in what order based on what the data shows:
 
-1. **Data Quality Checks** (`check_data_quality`) -- scans for missing values, duplicates, type mismatches
-2. **Trend Detection** (`get_weekly_trends`) -- computes 9 week-over-week metrics across all channels/teams
-3. **Anomaly Flagging** (`flag_anomalies`) -- statistical scan finds 31 anomalies including the urgent routing failure
-4. **NLP Theme Analysis** (`analyze_customer_messages`) -- TF-IDF bigram analysis on 9,776 customer messages to find emerging complaint patterns
-5. **Opportunity Sizing** (`size_opportunity`) -- computes annual savings with data-driven formulas and confidence ranges
-6. **Metric Drill-Down** (`analyze_metric`) -- deep-dive into any metric by channel, team, or priority
-7. **Brief Generation** (`generate_brief`) -- compiles all findings into the structured weekly brief
+1. **Data Quality Checks** (`check_data_quality`) — scans for missing values, duplicates, type mismatches
+2. **Trend Detection** (`get_weekly_trends`) — computes 9 week-over-week metrics across all channels/teams
+3. **Anomaly Flagging** (`flag_anomalies`) — statistical scan finds 31 anomalies including the urgent routing failure
+4. **NLP Theme Analysis** (`analyze_customer_messages`) — TF-IDF bigram analysis on 9,776 customer messages to find emerging complaint patterns
+5. **Opportunity Sizing** (`size_opportunity`) — computes annual savings with data-driven formulas and confidence ranges
+6. **Metric Drill-Down** (`analyze_metric`) — deep-dive into any metric by channel, team, or priority
+7. **Brief Generation** (`generate_brief`) — compiles all findings into the structured weekly brief
 
-Between tool calls, the agent **reasons about what it found** and decides what to investigate next. For example, after finding 31 anomalies, the agent autonomously chose to drill into Vendor B's performance -- that wasn't scripted.
+Between tool calls, the agent **reasons about what it found** and decides what to investigate next. For example, after finding 31 anomalies, the agent autonomously chose to drill into Vendor B's performance — that wasn't scripted.
 
 ### Three Guardrails
 
-1. **Tool Coverage Check** -- verifies all 5 opportunities were sized; backfills any the agent missed
-2. **Brief Validation** -- confirms the brief has all 4 required sections (Top 5, WoW, Actions, Watch List)
-3. **Max Retries + Fallback** -- if the agent fails after 20 iterations, falls back to deterministic mode so the pipeline always produces output
+1. **Tool Coverage Check** — verifies all 5 opportunities were sized; backfills any the agent missed
+2. **Brief Validation** — confirms the brief has all 4 required sections (Top 5, WoW, Actions, Watch List)
+3. **Max Retries + Fallback** — if the agent fails after 20 iterations, falls back to deterministic mode so the pipeline always produces output
 
 ### Fallback Mode
 
-When no API key is available, the system runs all tools in a fixed sequence. The dashboard looks identical -- only the Pipeline Log tab shows the difference (fixed sequence vs autonomous reasoning).
+When no API key is available, the system runs all tools in a fixed sequence. The dashboard looks identical — only the Pipeline Log tab shows the difference (fixed sequence vs autonomous reasoning).
 
 ## Installation
 
