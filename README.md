@@ -37,16 +37,16 @@ Run each script in order:
 
 ```bash
 # 1. Clean the raw data
-python analysis/clean.py
+python3 analysis/clean.py
 
 # 2. Run exploratory analysis and opportunity sizing
-python analysis/analyze.py
+python3 analysis/analyze.py
 
 # 3. Export results to Google Sheets (requires credentials.json)
-python analysis/sheets_export.py
+python3 analysis/sheets_export.py
 
 # 4. Run the AI agent pipeline
-python agent/agent.py
+python3 agent/agent.py
 
 # 5. Launch the Streamlit dashboard
 streamlit run app.py
