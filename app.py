@@ -249,10 +249,46 @@ with tab1:
                 del _sections[_sec_name]
                 break
 
-        # --- Executive Summary ---
+        # --- Executive Summary with KPI callouts ---
         if "Executive Summary" in _sections:
             st.subheader("Executive Summary")
-            st.markdown(_sections["Executive Summary"].strip())
+            _summary_text = _sections["Executive Summary"].strip()
+            st.markdown(_summary_text)
+
+            # Extract KPI bullets from the summary + other sections
+            _kpi_cols = st.columns(3)
+            # KPI 1: Total opportunity value
+            _total_match = _re.search(r'\$(\d[\d,]+)/yr', _summary_text)
+            with _kpi_cols[0]:
+                if _total_match:
+                    st.metric("Total Opportunity", f"${_total_match.group(1)}/yr")
+                else:
+                    st.metric("Total Opportunity", "—")
+            # KPI 2: Biggest WoW change from the comparison section
+            _wow_section = _sections.get("Week-over-Week Comparison", "")
+            # Parse WoW table rows: "| Metric | W9 | W10 | Delta | Trend |"
+            _wow_rows = [line.strip() for line in _wow_section.split("\n") if line.strip().startswith("|")]
+            _wow_deltas = []
+            for _wr in _wow_rows:
+                _cells = [c.strip() for c in _wr.split("|") if c.strip()]
+                if len(_cells) >= 4 and _cells[0] not in ("Metric", "---"):
+                    try:
+                        _wow_deltas.append((_cells[0], _cells[3]))
+                    except (IndexError, ValueError):
+                        pass
+            if _wow_deltas:
+                _biggest = max(_wow_deltas, key=lambda x: abs(float(x[1].rstrip('%'))))
+                with _kpi_cols[1]:
+                    st.metric("Biggest WoW Shift", _biggest[0], _biggest[1])
+            # KPI 3: Most urgent action
+            _actions_section = _sections.get("Recommended Actions This Week", "")
+            _immediate_match = _re.search(r'IMMEDIATE.*?:\s*(.+?)(?:\.|—)', _actions_section)
+            with _kpi_cols[2]:
+                if _immediate_match:
+                    _urgent_action = _immediate_match.group(1).strip()[:50]
+                    st.metric("Most Urgent Action", _urgent_action + "..." if len(_immediate_match.group(1).strip()) > 50 else _urgent_action)
+                else:
+                    st.metric("Most Urgent Action", "None flagged")
             st.divider()
 
         # --- Top 5 Issues This Week (structured cards) ---
@@ -317,10 +353,32 @@ with tab1:
             st.markdown(_sections["Week-over-Week Comparison"].strip())
             st.divider()
 
-        # --- Recommended Actions ---
+        # --- Recommended Actions (table) ---
         if "Recommended Actions This Week" in _sections:
             st.subheader("Recommended Actions This Week")
-            st.markdown(_sections["Recommended Actions This Week"].strip())
+            _actions_text = _sections["Recommended Actions This Week"].strip()
+            # Parse: "- **TIMELINE**: Action text — Owner: Name"
+            _action_items = _re.findall(
+                r'-\s+\*\*(.+?)\*\*:\s*(.+?)\s*(?:—|--|--)\s*Owner:\s*(.+?)\s*$',
+                _actions_text,
+                _re.MULTILINE,
+            )
+            if _action_items:
+                _action_rows = []
+                for _timeline, _action_desc, _owner in _action_items:
+                    _priority_icon = "🔴" if "IMMEDIATE" in _timeline else "🟠" if "SHORT" in _timeline else "🔵"
+                    _action_rows.append({
+                        "Priority": f"{_priority_icon} {_timeline}",
+                        "Action": _action_desc.strip(),
+                        "Owner": _owner.strip(),
+                    })
+                st.dataframe(
+                    pd.DataFrame(_action_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            else:
+                st.markdown(_actions_text)
             st.divider()
 
         # --- Watch List — Emerging Patterns (table) ---
@@ -395,6 +453,14 @@ with tab1:
 
         mod_time = time.strftime("%Y-%m-%d %H:%M", time.localtime(brief_path.stat().st_mtime))
         st.caption(f"Last generated: {mod_time}")
+
+        # Download button for the brief
+        st.download_button(
+            label="📥 Download Brief (Markdown)",
+            data=brief_text,
+            file_name=f"ops_intelligence_brief_{mod_time.replace(' ', '_').replace(':', '')}.md",
+            mime="text/markdown",
+        )
     else:
         st.info("No brief generated yet. Click **Run Analysis** in the sidebar.")
 
@@ -491,6 +557,39 @@ with tab2:
             use_container_width=True,
             hide_index=True,
         )
+
+        # Signal History Trend Charts
+        st.subheader("Signal History")
+        st.caption("Tracking how each opportunity's signal moves toward its target over time.")
+        _chart_cols = st.columns(min(len(opps_list), 3))
+        for _ci, opp in enumerate(opps_list):
+            _history = opp.get("signal_history", [])
+            if _history:
+                sig_def = OPPORTUNITY_SIGNALS.get(opp["id"])
+                _hist_values = [h["value"] for h in _history]
+                _hist_weeks = [f"W{h.get('week', i+1)}" for i, h in enumerate(_history)]
+                _chart_df = pd.DataFrame({"Week": _hist_weeks, "Signal": _hist_values})
+                if sig_def:
+                    _chart_df["Target"] = sig_def["target"]
+                with _chart_cols[_ci % min(len(opps_list), 3)]:
+                    _short_title = opp["title"].replace("Fix ", "").replace("Expand ", "")
+                    st.caption(f"**{_short_title}**")
+                    if len(_hist_values) >= 2:
+                        _line_data = pd.DataFrame({"Signal": _hist_values})
+                        if sig_def:
+                            _line_data["Target"] = sig_def["target"]
+                        st.line_chart(_line_data, height=150)
+                    else:
+                        label_info = signal_labels.get(opp["id"])
+                        if label_info:
+                            _, fmt = label_info
+                            st.metric("Current", fmt(_hist_values[0]))
+                        else:
+                            st.metric("Current", f"{_hist_values[0]:.2f}")
+                        if sig_def:
+                            st.caption(f"Target: {sig_def['target']}")
+
+        st.divider()
 
         # Total remaining value
         unresolved = [o for o in opps_list if o["status"] != "resolved"]
