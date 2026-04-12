@@ -1,6 +1,6 @@
 # Groupon Operations Intelligence Command Center
 
-An AI-powered operations intelligence system built for Groupon's Customer Operations team. The system ingests ~10,000 weekly support tickets, runs a multi-step analytical pipeline with autonomous agent reasoning, and produces a structured weekly "Ops Intelligence Brief" with actionable insights worth ~$195K/yr in identified savings.
+An AI-powered operations intelligence system built for Groupon's Customer Operations team. The system ingests ~10,000 weekly support tickets, runs a multi-step analytical pipeline with autonomous agent reasoning, and produces a structured weekly "Ops Intelligence Brief" with actionable insights worth ~\$195K/yr in identified savings.
 
 ## Screenshots
 
@@ -28,17 +28,18 @@ Full trace of the agent's tool calls, reasoning steps, and guardrail checks. In 
 
 ## Key Findings
 
-Analysis of 4 weeks of ticket data (9,776 clean tickets) identified **5 improvement opportunities worth $194,863/yr**:
+Analysis of 4 weeks of ticket data (9,776 clean tickets) identified **5 improvement opportunities worth \$194,863/yr**:
 
 | # | Opportunity | What It Means | Annual Savings | Range |
 |---|-------------|---------------|----------------|-------|
-| 1 | Chatbot deflection | Route more simple tickets to AI chatbot instead of expensive human agents | $67,328 | $50K-$84K |
-| 2 | Agent co-pilot | Give human agents an AI sidebar that suggests responses, reducing back-and-forth per ticket | $59,886 | $42K-$78K |
-| 3 | Urgent routing fix | Stop sending urgent tickets to the chatbot; route them to senior human agents | $39,828 | $32K-$48K |
-| 4 | Phone-to-chat deflection | Redirect phone callers to chat — same satisfaction, 3.5x cheaper | $19,566 | $16K-$23K |
-| 5 | Vendor B quality | Train/QA Vendor B agents to match Vendor A — fewer contacts, better CSAT | $8,255 | $6K-$11K |
+| 1 | Chatbot deflection | Route more simple tickets to AI chatbot instead of expensive human agents | \$67,328 | \$50K–\$84K |
+| 2 | Agent co-pilot | Give human agents an AI sidebar that suggests responses, reducing back-and-forth per ticket | \$59,886 | \$42K–\$78K |
+| 3 | Urgent routing fix | Stop sending urgent tickets to the chatbot; route them to senior human agents | \$39,828 | \$32K–\$48K |
+| 4 | Phone-to-chat deflection | Redirect phone callers to chat, same satisfaction, 3.5x cheaper | \$19,566 | \$16K–\$23K |
+| 5 | Vendor B quality | Train/QA Vendor B agents to match Vendor A, fewer contacts, better CSAT | \$8,255 | \$6K–\$11K |
 
 **Critical anomaly:** 238 urgent tickets were misrouted to the AI chatbot (54% resolution vs 72% for human agents). This is a config fix that can ship this week.
+
 
 ## How It Works
 
@@ -80,7 +81,7 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env with your keys:
 #   ANTHROPIC_API_KEY=your_key_here      (required for agent mode)
-#   SLACK_WEBHOOK_URL=your_webhook_here  (optional -- Slack notifications)
+#   SLACK_WEBHOOK_URL=your_webhook_here  (optional, Slack notifications)
 ```
 
 ## Quick Start
@@ -164,6 +165,6 @@ All costs and rates come directly from the CSV data. Only the targets are assume
 - 43% chatbot deflection rate (up from 27.9%)
 - 20% phone-to-chat redirect rate
 - 3.5 contacts/ticket with co-pilot (down from 4.09)
-- $100 average order value for lost-order calculation
+- \$100 average order value for lost-order calculation
 - Annualized at 13x (4 weeks of data x 13 = 52 weeks)
 - Ranges reflect +/-20-30% uncertainty based on confidence level
