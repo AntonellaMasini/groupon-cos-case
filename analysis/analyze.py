@@ -202,8 +202,6 @@ def opportunity_sizing(df):
     print("\n══ 3f. OPPORTUNITY SIZING ══════════════════════════════")
 
     # Import from the single source of truth to avoid duplicate formulas
-    import sys
-    sys.path.insert(0, str(ROOT))
     from agent.tools import size_opportunity
 
     opp_names = [

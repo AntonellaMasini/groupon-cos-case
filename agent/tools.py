@@ -9,7 +9,7 @@ import numpy as np
 from pathlib import Path
 from collections import Counter
 import re
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from datetime import datetime
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -550,14 +550,25 @@ def analyze_customer_messages():
 
     df["clean_msg"] = df["customer_message"].apply(clean_text)
 
-    # Top themes using bigrams across all tickets
-    vectorizer = CountVectorizer(ngram_range=(2, 2), stop_words="english", max_features=200)
-    X = vectorizer.fit_transform(df["clean_msg"])
-    bigram_counts = dict(zip(vectorizer.get_feature_names_out(), X.sum(axis=0).A1))
-    top_themes = sorted(bigram_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    # Top themes using TF-IDF bigrams — surfaces distinguishing themes, not just frequent ones
+    tfidf = TfidfVectorizer(ngram_range=(2, 2), stop_words="english", max_features=200)
+    X_tfidf = tfidf.fit_transform(df["clean_msg"])
+    # Rank by mean TF-IDF score across documents (higher = more distinctive)
+    tfidf_means = dict(zip(tfidf.get_feature_names_out(), X_tfidf.mean(axis=0).A1))
+    # Also get raw counts for reporting
+    count_vec = CountVectorizer(ngram_range=(2, 2), stop_words="english", max_features=200)
+    X_count = count_vec.fit_transform(df["clean_msg"])
+    bigram_counts = dict(zip(count_vec.get_feature_names_out(), X_count.sum(axis=0).A1))
+    # Sort by TF-IDF score but report counts too
+    top_themes = sorted(tfidf_means.items(), key=lambda x: x[1], reverse=True)[:10]
     top_themes_list = [
-        {"theme": theme, "tickets": int(count), "pct_of_total": round(count / len(df) * 100, 1)}
-        for theme, count in top_themes
+        {
+            "theme": theme,
+            "tfidf_score": round(score, 4),
+            "tickets": int(bigram_counts.get(theme, 0)),
+            "pct_of_total": round(bigram_counts.get(theme, 0) / len(df) * 100, 1),
+        }
+        for theme, score in top_themes
     ]
 
     # Week-over-week comparison (W9 vs W10)

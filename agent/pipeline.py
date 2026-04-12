@@ -9,14 +9,16 @@ import os
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
+import traceback
 import anthropic
 
-# Add project root and agent dir to path
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "agent"))
 
-from agent.tools import TOOL_SCHEMAS, TOOL_FUNCTIONS
+from agent.tools import (
+    TOOL_SCHEMAS, TOOL_FUNCTIONS,
+    check_data_quality, flag_anomalies, get_weekly_trends,
+    analyze_customer_messages, size_opportunity, generate_brief,
+)
 
 load_dotenv(ROOT / ".env")
 
@@ -84,81 +86,157 @@ def run_agent():
     ]
 
     # Agent loop — keep going until the agent produces a final text response
+    # ── Guardrail 3: Max retries with graceful fallback ───────
+    # If the agent fails or exhausts iterations, fall back to
+    # deterministic mode so the pipeline always produces output.
     max_iterations = 20
     iteration = 0
+    agent_succeeded = False
 
-    while iteration < max_iterations:
-        iteration += 1
-        log_step("thinking", f"Iteration {iteration} — sending to Claude...")
+    try:
+        while iteration < max_iterations:
+            iteration += 1
+            log_step("thinking", f"Iteration {iteration} — sending to Claude...")
 
-        response = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=4096,
-            system=SYSTEM_PROMPT,
-            tools=TOOL_SCHEMAS,
-            messages=messages,
-        )
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4096,
+                system=SYSTEM_PROMPT,
+                tools=TOOL_SCHEMAS,
+                messages=messages,
+            )
 
-        # Process response content blocks
-        assistant_content = response.content
-        tool_results = []
+            # Process response content blocks
+            assistant_content = response.content
+            tool_results = []
 
-        for block in assistant_content:
-            if block.type == "text":
-                log_step("thinking", block.text[:500])
+            for block in assistant_content:
+                if block.type == "text":
+                    log_step("thinking", block.text[:500])
 
-            elif block.type == "tool_use":
-                tool_name = block.name
-                tool_input = block.input
-                tool_id = block.id
+                elif block.type == "tool_use":
+                    tool_name = block.name
+                    tool_input = block.input
+                    tool_id = block.id
 
-                log_step("tool_call", f"{tool_name}({json.dumps(tool_input)[:100]})")
+                    log_step("tool_call", f"{tool_name}({json.dumps(tool_input)[:100]})")
 
-                # Execute the tool
-                if tool_name in TOOL_FUNCTIONS:
-                    try:
-                        result = TOOL_FUNCTIONS[tool_name](tool_input)
-                        result_str = json.dumps(result, default=str)
-                        log_step("tool_result", f"{tool_name} → {len(result_str)} chars")
-                    except Exception as e:
-                        result_str = json.dumps({"error": str(e)})
-                        log_step("tool_result", f"{tool_name} → ERROR: {e}")
-                else:
-                    result_str = json.dumps({"error": f"Unknown tool: {tool_name}"})
-                    log_step("tool_result", f"Unknown tool: {tool_name}")
+                    # Execute the tool
+                    if tool_name in TOOL_FUNCTIONS:
+                        try:
+                            result = TOOL_FUNCTIONS[tool_name](tool_input)
+                            result_str = json.dumps(result, default=str)
+                            log_step("tool_result", f"{tool_name} → {len(result_str)} chars")
+                        except Exception as e:
+                            result_str = json.dumps({"error": str(e)})
+                            log_step("tool_result", f"{tool_name} → ERROR: {e}")
+                    else:
+                        result_str = json.dumps({"error": f"Unknown tool: {tool_name}"})
+                        log_step("tool_result", f"Unknown tool: {tool_name}")
 
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": tool_id,
-                    "content": result_str,
-                })
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": tool_id,
+                        "content": result_str,
+                    })
 
-        # Add assistant message to conversation
-        messages.append({"role": "assistant", "content": assistant_content})
+            # Add assistant message to conversation
+            messages.append({"role": "assistant", "content": assistant_content})
 
-        # If there were tool calls, add results and continue the loop
-        if tool_results:
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            # No tool calls — agent is done
-            break
+            # If there were tool calls, add results and continue the loop
+            if tool_results:
+                messages.append({"role": "user", "content": tool_results})
+            else:
+                # No tool calls — agent is done
+                agent_succeeded = True
+                break
 
-        # Check stop reason
-        if response.stop_reason == "end_turn" and not tool_results:
-            break
+            # Check stop reason
+            if response.stop_reason == "end_turn" and not tool_results:
+                agent_succeeded = True
+                break
+
+        if iteration >= max_iterations:
+            log_step("guardrail", f"Agent hit max iterations ({max_iterations}). Falling back to deterministic mode.")
+
+    except Exception as e:
+        log_step("guardrail", f"Agent error: {e}. Falling back to deterministic mode.")
+        traceback.print_exc()
+        assistant_content = []  # ensure variable is defined for final_text extraction
+
+    # ── Deterministic fallback ────────────────────────────────
+    # If the agent didn't complete successfully, run all tools
+    # in sequence to guarantee the brief is always produced.
+    if not agent_succeeded:
+        log_step("guardrail", "Running deterministic fallback: executing all tools in sequence.")
+        try:
+            check_data_quality()
+            flag_anomalies()
+            get_weekly_trends()
+            analyze_customer_messages()
+            for opp in ["chatbot_deflection", "agent_copilot", "urgent_routing",
+                        "phone_deflection", "bpo_vendor_b"]:
+                size_opportunity(opp)
+            generate_brief()
+            log_step("guardrail", "Deterministic fallback completed successfully.")
+        except Exception as fallback_err:
+            log_step("guardrail", f"Deterministic fallback also failed: {fallback_err}")
 
     # Extract final text
     final_text = ""
     for block in assistant_content:
-        if block.type == "text":
+        if hasattr(block, 'type') and block.type == "text":
             final_text += block.text
+
+    # ── Guardrail 1: Tool coverage check ──────────────────────
+    # Verify the agent sized all 5 opportunities. If any are missing,
+    # run them deterministically so the brief is always complete.
+    required_opps = {"chatbot_deflection", "agent_copilot", "urgent_routing",
+                     "phone_deflection", "bpo_vendor_b"}
+    called_opps = set()
+    for entry in pipeline_log:
+        if entry["type"] == "tool_call" and "size_opportunity" in entry["detail"]:
+            for opp_name in required_opps:
+                if opp_name in entry["detail"]:
+                    called_opps.add(opp_name)
+    missing_opps = required_opps - called_opps
+    if missing_opps:
+        log_step("guardrail", f"Agent missed {len(missing_opps)} opportunities: {missing_opps}. Sizing them now.")
+        for opp_name in missing_opps:
+            try:
+                size_opportunity(opp_name)
+                log_step("tool_call", f"size_opportunity({opp_name}) [guardrail backfill]")
+            except Exception as e:
+                log_step("tool_result", f"size_opportunity({opp_name}) guardrail ERROR: {e}")
+
+    # ── Guardrail 2: Brief output validation ──────────────────
+    # Verify the brief contains all 4 required sections. If not,
+    # regenerate it deterministically so the output is always complete.
+    brief_path = ROOT / "output" / "weekly_brief.md"
+    brief_valid = False
+    if brief_path.exists():
+        brief_text = brief_path.read_text()
+        required_sections = ["Top 5 Issues", "Week-over-Week", "Recommended Actions", "Watch List"]
+        missing_sections = [s for s in required_sections if s not in brief_text]
+        if missing_sections:
+            log_step("guardrail", f"Brief missing sections: {missing_sections}. Regenerating.")
+        else:
+            brief_valid = True
+            log_step("guardrail", "Brief validated: all 4 required sections present.")
+    else:
+        log_step("guardrail", "Brief file not found. Regenerating.")
+
+    if not brief_valid:
+        try:
+            generate_brief()
+            log_step("guardrail", "Brief regenerated via deterministic fallback.")
+        except Exception as e:
+            log_step("guardrail", f"Brief regeneration failed: {e}")
 
     print(f"\n── Pipeline Complete ────────────────────────────────────")
     print(f"  Iterations: {iteration}")
     print(f"  Tool calls: {sum(1 for l in pipeline_log if l['type'] == 'tool_call')}")
 
-    # Check if brief was generated
-    brief_path = ROOT / "output" / "weekly_brief.md"
     if brief_path.exists():
         print(f"  Brief saved: {brief_path}")
     else:

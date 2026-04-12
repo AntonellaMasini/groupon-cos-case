@@ -9,15 +9,12 @@ falls back to direct tool calls so the demo still works.
 
 import streamlit as st
 import pandas as pd
-import sys
 import os
 import json
 import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "agent"))
 
 from agent.tools import (
     check_data_quality, flag_anomalies, get_weekly_trends,

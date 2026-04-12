@@ -3,13 +3,6 @@ Unit tests for agent tools.
 Run with: python -m pytest tests/test_tools.py -v
 """
 
-import sys
-from pathlib import Path
-
-# Ensure project root is on the path
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-
 from agent.tools import (
     check_data_quality,
     size_opportunity,

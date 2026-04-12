@@ -5,13 +5,11 @@ detects stalled items, and promotes new priorities from anomaly detection + NLP.
 """
 
 import json
-import sys
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
 
 from agent.tools import flag_anomalies, analyze_customer_messages
 STATE_PATH = Path(__file__).resolve().parent / "backlog_state.json"
