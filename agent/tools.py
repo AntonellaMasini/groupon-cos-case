@@ -578,6 +578,24 @@ def analyze_customer_messages():
     df_prior = df[df["week"] == w_prior]
     df_latest = df[df["week"] == w_latest]
 
+    # Latest-week-only themes (for dashboard display)
+    tfidf_latest = TfidfVectorizer(ngram_range=(2, 2), stop_words="english", max_features=200)
+    X_tfidf_latest = tfidf_latest.fit_transform(df_latest["clean_msg"])
+    tfidf_latest_means = dict(zip(tfidf_latest.get_feature_names_out(), X_tfidf_latest.mean(axis=0).A1))
+    count_latest = CountVectorizer(ngram_range=(2, 2), stop_words="english", max_features=200)
+    X_count_latest = count_latest.fit_transform(df_latest["clean_msg"])
+    latest_counts = dict(zip(count_latest.get_feature_names_out(), X_count_latest.sum(axis=0).A1))
+    top_latest = sorted(tfidf_latest_means.items(), key=lambda x: x[1], reverse=True)[:10]
+    latest_week_themes = [
+        {
+            "theme": theme,
+            "tfidf_score": round(score, 4),
+            "tickets": int(latest_counts.get(theme, 0)),
+            "pct_of_total": round(latest_counts.get(theme, 0) / len(df_latest) * 100, 1),
+        }
+        for theme, score in top_latest
+    ]
+
     # Get bigram frequencies per week
     def get_bigrams(subset):
         vec = CountVectorizer(ngram_range=(2, 2), stop_words="english", max_features=200)
@@ -638,6 +656,7 @@ def analyze_customer_messages():
 
     return {
         "top_themes": top_themes_list,
+        "latest_week_themes": latest_week_themes,
         "emerging_patterns": emerging,
         "category_keywords": category_keywords,
         "prior_week": int(w_prior),

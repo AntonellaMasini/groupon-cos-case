@@ -427,19 +427,20 @@ with tab3:
             col_a, col_b = st.columns(2)
 
             with col_a:
-                st.subheader("Top Customer Message Themes")
-                for theme in nlp.get("top_themes", [])[:5]:
-                    st.write(f"- **{theme['theme']}** -- {theme['tickets']} tickets ({theme['pct_of_total']}%)")
+                st.subheader(f"Top Customer Message Themes (W{nlp.get('latest_week', '?')})")
+                latest_themes = nlp.get("latest_week_themes", nlp.get("top_themes", []))
+                for theme in latest_themes[:5]:
+                    st.write(f"- **{theme['theme']}** — {theme['tickets']} tickets ({theme['pct_of_total']}%)")
 
             with col_b:
                 st.subheader("Emerging Patterns (Week-over-Week)")
                 for pattern in nlp.get("emerging_patterns", [])[:5]:
                     growth = pattern["growth_pct"]
-                    color = "red" if growth > 40 else "orange" if growth > 25 else "blue"
+                    icon = "🔴" if growth > 40 else "🟠" if growth > 25 else "🔵"
                     st.write(
-                        f"- **{pattern['theme']}** -- "
-                        f":{color}_circle: +{growth:.0f}% "
-                        f"(W{nlp['prior_week']}: {pattern['w_prior_count']} -> "
+                        f"- **{pattern['theme']}** — "
+                        f"{icon} +{growth:.0f}% "
+                        f"(W{nlp['prior_week']}: {pattern['w_prior_count']} → "
                         f"W{nlp['latest_week']}: {pattern['w_latest_count']})"
                     )
     else:
