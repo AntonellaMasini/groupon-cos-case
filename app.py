@@ -230,16 +230,50 @@ with tab1:
 
 # -- Tab 2: Master Backlog --
 with tab2:
+    st.caption(
+        "The **Master Backlog** tracks the top 5 operational improvement opportunities ranked by "
+        "estimated annual savings. Each opportunity has a **Signal** (the current metric value measured "
+        "this week) and a **Target** (the goal to hit). **Trend** shows whether the signal is moving "
+        "toward or away from the target compared to last week. An opportunity is auto-resolved once "
+        "the signal stays at target for 2 consecutive weeks."
+    )
     backlog = _load_state()
     if backlog and backlog.get("opportunities"):
         opps_list = sorted(backlog["opportunities"], key=lambda x: x["annual_value"], reverse=True)
 
+        # Human-readable metric labels for the Signal column
+        signal_labels = {
+            "chatbot_deflection": ("Chatbot %", lambda v: f"{v:.1%}"),
+            "agent_copilot": ("Contacts/ticket", lambda v: f"{v:.1f}"),
+            "urgent_routing": ("Urgent→chatbot", lambda v: f"{int(v)}"),
+            "phone_deflection": ("Phone %", lambda v: f"{v:.1%}"),
+            "bpo_vendor_b": ("Vendor B CSAT", lambda v: f"{v:.2f}"),
+        }
+
         rows = []
         for i, opp in enumerate(opps_list, 1):
             sig_def = OPPORTUNITY_SIGNALS.get(opp["id"])
-            current = opp["signal_history"][-1]["value"] if opp.get("signal_history") else "---"
-            target = sig_def["target"] if sig_def else "---"
+            raw_current = opp["signal_history"][-1]["value"] if opp.get("signal_history") else None
             weeks_tracked = len(opp.get("signal_history", []))
+
+            # Format signal and target with readable labels
+            label_info = signal_labels.get(opp["id"])
+            if label_info and raw_current is not None:
+                metric_name, fmt = label_info
+                signal_str = f"{fmt(raw_current)}"
+            elif raw_current is not None:
+                signal_str = f"{raw_current:.2f}"
+            else:
+                signal_str = "—"
+
+            if sig_def and label_info:
+                _, fmt = label_info
+                direction_word = "≤" if sig_def["target_direction"] == "below" else "≥"
+                target_str = f"{direction_word} {fmt(sig_def['target'])}"
+            elif sig_def:
+                target_str = f"{sig_def['target']}"
+            else:
+                target_str = "—"
 
             # Trend arrow
             if len(opp.get("signal_history", [])) >= 2:
@@ -250,20 +284,25 @@ with tab2:
                 else:
                     trend = "improving" if curr > prev else ("worsening" if curr < prev else "flat")
             else:
-                trend = "---"
+                trend = "new"
 
-            trend_arrows = {"improving": "^", "worsening": "v", "flat": "->", "---": "---"}
+            trend_labels = {
+                "improving": "📈 Improving",
+                "worsening": "📉 Worsening",
+                "flat": "➡️ Flat",
+                "new": "🆕 New",
+            }
 
             rows.append({
                 "Rank": i,
-                "Title": opp["title"],
-                "Status": opp["status"],
-                "Signal": current,
-                "Target": target,
-                "Trend": trend_arrows.get(trend, "---"),
+                "Opportunity": opp["title"],
+                "Status": opp["status"].replace("_", " ").title(),
+                "Signal (now)": signal_str,
+                "Target": target_str,
+                "Trend": trend_labels.get(trend, "—"),
                 "Owner": opp["owner"],
                 "Annual Value": f"${opp['annual_value']:,}",
-                "Weeks": weeks_tracked,
+                "Weeks Tracked": weeks_tracked,
             })
 
         df_backlog = pd.DataFrame(rows)
@@ -271,9 +310,9 @@ with tab2:
         # Color rows by status
         def color_status(row):
             colors = {
-                "resolved": "background-color: #d4edda",
-                "in_progress": "background-color: #fff3cd",
-                "stalled": "background-color: #f8d7da",
+                "Resolved": "background-color: #d4edda",
+                "In Progress": "background-color: #fff3cd",
+                "Stalled": "background-color: #f8d7da",
             }
             return [colors.get(row["Status"], "")] * len(row)
 
