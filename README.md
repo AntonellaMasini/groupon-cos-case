@@ -69,14 +69,15 @@ groupon-cos-case/
 │   └── sheets_export.py              # Google Sheets export
 ├── agent/
 │   ├── tools.py                       # 7 agent tools (Anthropic SDK)
-│   ├── agent.py                       # Agentic pipeline orchestrator
+│   ├── pipeline.py                    # Agentic pipeline orchestrator
 │   ├── backlog.py                     # Backlog tracking with auto-resolution
 │   ├── slack_notify.py               # Slack webhook notifications
 │   └── backlog_state.json            # Persistent backlog state
 ├── app.py                             # Streamlit frontend (4 tabs)
 └── output/
     ├── analysis_results.xlsx          # Excel workbook (5 tabs)
-    └── weekly_brief.md               # Generated weekly brief
+    ├── weekly_brief.md               # Generated weekly brief
+    └── slack_message.json            # Last Slack message payload
 ```
 
 ## Tech Stack
