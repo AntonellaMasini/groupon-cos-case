@@ -348,9 +348,17 @@ with tab3:
         # -- Charts --
         if opps:
             st.subheader("Opportunity Sizing -- Annual Savings")
+            # Use short labels so the y-axis doesn't truncate names
+            short_labels = {
+                "Expand chatbot deflection": "Chatbot deflection",
+                "AI agent co-pilot": "Agent co-pilot",
+                "Fix urgent ticket routing": "Urgent routing",
+                "Phone to chat deflection": "Phone deflection",
+                "BPO Vendor B quality intervention": "Vendor B quality",
+            }
             opp_chart_data = pd.DataFrame([
                 {
-                    "Opportunity": o["opportunity"],
+                    "Opportunity": short_labels.get(o["opportunity"], o["opportunity"]),
                     "Annual Savings ($)": o["annual_savings"],
                 }
                 for o in sorted(opps, key=lambda x: x["annual_savings"], reverse=True)
