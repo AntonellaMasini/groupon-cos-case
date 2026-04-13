@@ -704,12 +704,17 @@ def generate_brief(findings=None):
     else:
         trends = trends_candidate
 
-    # Opportunities: expect a list, fall back to calling all 5
+    # Opportunities: expect a list of all 5, fall back to calling them directly.
+    # Claude sometimes passes only a subset — always require exactly 5 with
+    # valid annual_savings so the brief is never incomplete.
     opp_names = ["chatbot_deflection", "agent_copilot", "urgent_routing", "phone_deflection", "bpo_vendor_b"]
     if findings and isinstance(findings, dict) and isinstance(findings.get("opportunities"), list):
         opportunities = findings["opportunities"]
-        # Validate: each item must be a dict with "annual_savings"
-        if not all(isinstance(o, dict) and "annual_savings" in o for o in opportunities):
+        # Validate: must have all 5, each a dict with "annual_savings"
+        if (
+            len(opportunities) < len(opp_names)
+            or not all(isinstance(o, dict) and "annual_savings" in o for o in opportunities)
+        ):
             opportunities = [size_opportunity(name) for name in opp_names]
     else:
         opportunities = [size_opportunity(name) for name in opp_names]
