@@ -1,5 +1,5 @@
 """
-Agent tools for the Groupon Ops Intelligence pipeline.
+Agent tools for the Ops Intelligence pipeline.
 Each tool is a callable function + an Anthropic tool schema.
 Tools operate on the cleaned ticket CSV data.
 """
