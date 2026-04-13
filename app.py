@@ -370,7 +370,7 @@ with tab1:
             _actions_text = _sections["Recommended Actions This Week"].strip()
             # Parse: "- **TIMELINE**: Action text — Owner: Name"
             _action_items = _re.findall(
-                r'-\s+\*\*(.+?)\*\*:\s*(.+?)\s*(?:—|--|--)\s*Owner:\s*(.+?)\s*$',
+                r'-\s+\*\*(.+?)\*\*:\s*(.+?)\s*(?:\u2014|--|--)\s*Owner:\s*(.+?)\s*$',
                 _actions_text,
                 _re.MULTILINE,
             )
@@ -383,8 +383,21 @@ with tab1:
                         f"*Owner: {_owner.strip()}*"
                     )
                     st.caption("")  # spacing between actions
-            else:
+            elif _actions_text:
                 st.markdown(_actions_text)
+            else:
+                # Fallback: render actions directly from OPPORTUNITY_META
+                _timeline_order = ["IMMEDIATE (this week)", "SHORT TERM (this month)", "MEDIUM TERM (this quarter)"]
+                for _tl in _timeline_order:
+                    for _opp_id, _meta in OPPORTUNITY_META.items():
+                        if _meta.get("timeline") == _tl:
+                            _pi = "🔴" if "IMMEDIATE" in _tl else "🟠" if "SHORT" in _tl else "🔵"
+                            st.markdown(
+                                f"{_pi} **{_tl}**  \n"
+                                f"{_meta['action']}  \n"
+                                f"*Owner: {_meta['owner']}*"
+                            )
+                            st.caption("")
             st.divider()
 
         # --- Watch List — Emerging Patterns (table) ---

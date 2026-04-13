@@ -171,13 +171,19 @@ def run_agent():
         log_step("guardrail", "Running deterministic fallback: executing all tools in sequence.")
         try:
             check_data_quality()
+            log_step("tool_call", "check_data_quality() [fallback]")
             flag_anomalies()
+            log_step("tool_call", "flag_anomalies() [fallback]")
             get_weekly_trends()
+            log_step("tool_call", "get_weekly_trends() [fallback]")
             analyze_customer_messages()
+            log_step("tool_call", "analyze_customer_messages() [fallback]")
             for opp in ["chatbot_deflection", "agent_copilot", "urgent_routing",
                         "phone_deflection", "bpo_vendor_b"]:
                 size_opportunity(opp)
+                log_step("tool_call", f"size_opportunity({opp}) [fallback]")
             generate_brief()
+            log_step("tool_call", "generate_brief() [fallback]")
             log_step("guardrail", "Deterministic fallback completed successfully.")
         except Exception as fallback_err:
             log_step("guardrail", f"Deterministic fallback also failed: {fallback_err}")
@@ -210,8 +216,8 @@ def run_agent():
                 log_step("tool_result", f"size_opportunity({opp_name}) guardrail ERROR: {e}")
 
     # ── Guardrail 2: Brief output validation ──────────────────
-    # Verify the brief contains all 4 required sections. If not,
-    # regenerate it deterministically so the output is always complete.
+    # Verify the brief contains all 4 required sections AND that
+    # key sections have actual content (not just headers).
     brief_path = ROOT / "output" / "weekly_brief.md"
     brief_valid = False
     if brief_path.exists():
@@ -221,8 +227,18 @@ def run_agent():
         if missing_sections:
             log_step("guardrail", f"Brief missing sections: {missing_sections}. Regenerating.")
         else:
-            brief_valid = True
-            log_step("guardrail", "Brief validated: all 4 required sections present.")
+            # Also check that Recommended Actions has actual content
+            import re as _re
+            _actions_match = _re.search(
+                r'## Recommended Actions This Week\s*\n(.*?)(?=\n## |\Z)',
+                brief_text, _re.DOTALL
+            )
+            _actions_content = _actions_match.group(1).strip() if _actions_match else ""
+            if not _actions_content or "IMMEDIATE" not in _actions_content:
+                log_step("guardrail", "Brief has empty Recommended Actions section. Regenerating.")
+            else:
+                brief_valid = True
+                log_step("guardrail", "Brief validated: all 4 required sections present.")
     else:
         log_step("guardrail", "Brief file not found. Regenerating.")
 
