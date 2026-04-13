@@ -1,5 +1,5 @@
 """
-Streamlit frontend for the Groupon Ops Intelligence Command Center.
+Streamlit frontend for the Ops Intelligence Command Center.
 Ties together: data cleaning, AI agent pipeline, backlog tracking, and Slack.
 
 The agent (pipeline.py) uses the Anthropic SDK with tool use to autonomously
