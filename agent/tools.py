@@ -679,7 +679,19 @@ def generate_brief(findings=None):
                 return val
         return fallback_fn()
 
-    data_quality = _safe_get("data_quality", check_data_quality)
+    # Data quality needs validation: Claude sometimes drops or zeroes
+    # missing_csat_rate.  Require the key fields that the brief renders.
+    _dq_candidate = _safe_get("data_quality", check_data_quality)
+    if (
+        not isinstance(_dq_candidate.get("row_count"), (int, float))
+        or "missing_csat_rate" not in _dq_candidate
+        or not isinstance(_dq_candidate.get("missing_csat_rate"), (int, float))
+        or not isinstance(_dq_candidate.get("anomalies_found"), list)
+    ):
+        data_quality = check_data_quality()
+    else:
+        data_quality = _dq_candidate
+
     anomaly_result = _safe_get("anomalies", flag_anomalies)
     nlp = _safe_get("nlp", analyze_customer_messages)
 
