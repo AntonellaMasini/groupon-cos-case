@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-04-12T13:43:31.989750",
+  "last_updated": "2026-04-13T05:13:42.862172",
   "opportunities": [
     {
       "id": "urgent_routing",
@@ -10,7 +10,19 @@
       "owner": "Head of CX Ops",
       "signal_history": [
         {
-          "week": "2026-04-12",
+          "week": "W7",
+          "value": 244
+        },
+        {
+          "week": "W8",
+          "value": 220
+        },
+        {
+          "week": "W9",
+          "value": 195
+        },
+        {
+          "week": "W10",
           "value": 238
         }
       ],
@@ -26,7 +38,19 @@
       "owner": "AI Product Lead",
       "signal_history": [
         {
-          "week": "2026-04-12",
+          "week": "W7",
+          "value": 0.245
+        },
+        {
+          "week": "W8",
+          "value": 0.258
+        },
+        {
+          "week": "W9",
+          "value": 0.268
+        },
+        {
+          "week": "W10",
           "value": 0.279
         }
       ],
@@ -42,7 +66,19 @@
       "owner": "Channel Strategy Lead",
       "signal_history": [
         {
-          "week": "2026-04-12",
+          "week": "W7",
+          "value": 0.215
+        },
+        {
+          "week": "W8",
+          "value": 0.21
+        },
+        {
+          "week": "W9",
+          "value": 0.205
+        },
+        {
+          "week": "W10",
           "value": 0.202
         }
       ],
@@ -58,7 +94,19 @@
       "owner": "Vendor Management Lead",
       "signal_history": [
         {
-          "week": "2026-04-12",
+          "week": "W7",
+          "value": 3.1
+        },
+        {
+          "week": "W8",
+          "value": 3.06
+        },
+        {
+          "week": "W9",
+          "value": 3.08
+        },
+        {
+          "week": "W10",
           "value": 3.04
         }
       ],
@@ -74,134 +122,24 @@
       "owner": "Agent Ops Lead",
       "signal_history": [
         {
-          "week": "2026-04-12",
+          "week": "W7",
+          "value": 4.25
+        },
+        {
+          "week": "W8",
+          "value": 4.18
+        },
+        {
+          "week": "W9",
+          "value": 4.12
+        },
+        {
+          "week": "W10",
           "value": 4.09
         }
       ],
       "consecutive_weeks_at_target": 0,
       "resolved_date": null
-    }
-  ],
-  "candidates": [
-    {
-      "id": "chatbot_containment",
-      "title": "Chatbot escalation rate exceeds benchmark",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "Chatbot escalation rate: 25.8% vs industry benchmark ~15%. 294 excess escalations per 4 weeks.",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "vendor_b_quality",
-      "title": "BPO Vendor B quality gap",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "Vendor B CSAT: 3.04 vs Vendor A: 3.35 vs in-house: 3.94. Vendor B contacts/ticket: 5.4 vs Vendor A: 4.8.",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "phone_cost",
-      "title": "Phone channel cost premium",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "Phone: $5.34/ticket vs chat: $1.52/ticket (3.5x gap). Phone CSAT: 3.53 vs chat: 3.42 \u2014 similar satisfaction at very different cost.",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "wow_assigned_team_bpo_vendorb_resolution_min",
-      "title": "WoW spike: bpo_vendorB resolution_min (assigned_team)",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "bpo_vendorB resolution_min increased 38.4% WoW (W9: 156.61 \u2192 W10: 216.70).",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "wow_channel_email_resolution_min",
-      "title": "WoW spike: email resolution_min (channel)",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "email resolution_min increased 29.9% WoW (W9: 157.89 \u2192 W10: 205.02).",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "wow_channel_social_resolution_min",
-      "title": "WoW spike: social resolution_min (channel)",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "social resolution_min decreased 27.6% WoW (W9: 119.36 \u2192 W10: 86.37).",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "wow_category_billing_resolution_min",
-      "title": "WoW spike: billing resolution_min (category)",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "billing resolution_min increased 44.2% WoW (W9: 88.02 \u2192 W10: 126.96).",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "wow_category_order_status_resolution_min",
-      "title": "WoW spike: order_status resolution_min (category)",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "order_status resolution_min decreased 28.9% WoW (W9: 94.82 \u2192 W10: 67.38).",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "wow_category_other_resolution_min",
-      "title": "WoW spike: other resolution_min (category)",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "other resolution_min increased 138.0% WoW (W9: 69.15 \u2192 W10: 164.60).",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "wow_category_voucher_problem_resolution_min",
-      "title": "WoW spike: voucher_problem resolution_min (category)",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "voucher_problem resolution_min increased 29.5% WoW (W9: 87.84 \u2192 W10: 113.71).",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "wow_category_other_first_response_min",
-      "title": "WoW spike: other first_response_min (category)",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "other first_response_min increased 31.5% WoW (W9: 30.38 \u2192 W10: 39.96).",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "wow_market_de_resolution_min",
-      "title": "WoW spike: DE resolution_min (market)",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "DE resolution_min increased 28.0% WoW (W9: 68.89 \u2192 W10: 88.20).",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "wow_market_es_resolution_min",
-      "title": "WoW spike: ES resolution_min (market)",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "ES resolution_min increased 32.7% WoW (W9: 83.56 \u2192 W10: 110.89).",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "wow_market_fr_resolution_min",
-      "title": "WoW spike: FR resolution_min (market)",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "FR resolution_min decreased 33.6% WoW (W9: 156.92 \u2192 W10: 104.21).",
-      "estimated_annual_value": 15000
-    },
-    {
-      "id": "wow_market_us_resolution_min",
-      "title": "WoW spike: US resolution_min (market)",
-      "source": "anomaly_detection",
-      "severity": "high",
-      "detail": "US resolution_min increased 46.0% WoW (W9: 75.08 \u2192 W10: 109.65).",
-      "estimated_annual_value": 15000
     }
   ]
 }
