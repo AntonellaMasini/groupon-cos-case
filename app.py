@@ -28,7 +28,7 @@ from agent.backlog import (
 from agent.slack_notify import build_message, send_notification, build_watch_list
 
 st.set_page_config(
-    page_title="Groupon Ops Intelligence",
+    page_title="Ops Intelligence",
     page_icon=":bar_chart:",
     layout="wide",
 )
@@ -36,7 +36,7 @@ st.set_page_config(
 # ─────────────────────────────────────────────────────────────────
 # Header
 # ─────────────────────────────────────────────────────────────────
-st.title("Groupon Operations Intelligence Command Center")
+st.title("Operations Intelligence Command Center")
 st.caption(
     "**Demo mode:** upload CSV manually. "
     "**Production:** would auto-pull from Zendesk API every Monday 6am "
