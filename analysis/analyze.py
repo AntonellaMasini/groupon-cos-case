@@ -1,5 +1,5 @@
 """
-Full exploratory analysis and opportunity sizing for Groupon ticket data.
+Full exploratory analysis and opportunity sizing for ticket data.
 Loads cleaned CSV, runs all analyses, prints results, saves to Excel.
 """
 

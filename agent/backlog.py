@@ -1,5 +1,5 @@
 """
-Backlog tracking system for Groupon Ops Intelligence.
+Backlog tracking system for Ops Intelligence.
 Tracks opportunities via signal metrics, auto-resolves when targets are hit,
 detects stalled items, and promotes new priorities from anomaly detection + NLP.
 """

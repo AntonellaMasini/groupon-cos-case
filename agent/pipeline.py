@@ -1,5 +1,5 @@
 """
-Agentic pipeline for Groupon Ops Intelligence.
+Agentic pipeline for Ops Intelligence.
 Uses the raw Anthropic Python SDK with tool use — no LangChain.
 The agent decides which tools to call, in what order, based on the data.
 """

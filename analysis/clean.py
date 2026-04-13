@@ -1,5 +1,5 @@
 """
-Data cleaning script for Groupon support ticket data.
+Data cleaning script for support ticket data.
 Loads raw CSV, applies cleaning steps, prints quality report, saves clean CSV.
 """
 
