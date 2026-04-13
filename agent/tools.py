@@ -741,7 +741,7 @@ def generate_brief(findings=None):
 
     # Build brief
     lines = []
-    lines.append(f"# Groupon Ops Intelligence Brief")
+    lines.append(f"# Ops Intelligence Brief")
     lines.append(f"## Week {week_num} | Generated {now}")
     lines.append("")
 
