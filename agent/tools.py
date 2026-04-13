@@ -695,7 +695,9 @@ def generate_brief(findings=None):
     trends_candidate = _safe_get("weekly_trends", get_weekly_trends)
     _comp = trends_candidate.get("comparison", {})
     if not _required_wow_keys.issubset(_comp.keys()) or not all(
-        isinstance(_comp.get(k), dict) and "prior_week" in _comp[k]
+        isinstance(_comp.get(k), dict)
+        and "prior_week" in _comp[k]
+        and "current_week" in _comp[k]
         for k in _required_wow_keys
     ):
         trends = get_weekly_trends()
