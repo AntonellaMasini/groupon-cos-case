@@ -280,13 +280,24 @@ with tab1:
                 _biggest = max(_wow_deltas, key=lambda x: abs(float(x[1].rstrip('%'))))
                 with _kpi_cols[1]:
                     st.metric("Biggest WoW Shift", _biggest[0], _biggest[1])
-            # KPI 3: Most urgent action
+            # KPI 3: Most urgent action — try multiple patterns
             _actions_section = _sections.get("Recommended Actions This Week", "")
-            _immediate_match = _re.search(r'IMMEDIATE.*?:\s*(.+?)(?:\.|—)', _actions_section)
+            _urgent_action = None
+            # Pattern 1: "**IMMEDIATE ...**: action text — Owner:"
+            _imm_match = _re.search(
+                r'\*\*IMMEDIATE[^*]*\*\*:\s*(.+?)\s*(?:\u2014|--|—)\s*Owner:', _actions_section
+            )
+            if _imm_match:
+                _urgent_action = _imm_match.group(1).strip()
+            else:
+                # Pattern 2: looser — just find first IMMEDIATE line
+                _imm_match2 = _re.search(r'IMMEDIATE[^:]*:\s*(.+?)(?:\.|$)', _actions_section, _re.MULTILINE)
+                if _imm_match2:
+                    _urgent_action = _imm_match2.group(1).strip()
             with _kpi_cols[2]:
-                if _immediate_match:
-                    _urgent_action = _immediate_match.group(1).strip()[:50]
-                    st.metric("Most Urgent Action", _urgent_action + "..." if len(_immediate_match.group(1).strip()) > 50 else _urgent_action)
+                if _urgent_action:
+                    _display = _urgent_action[:50] + "..." if len(_urgent_action) > 50 else _urgent_action
+                    st.metric("Most Urgent Action", _display)
                 else:
                     st.metric("Most Urgent Action", "None flagged")
             st.divider()
@@ -359,7 +370,7 @@ with tab1:
             _actions_text = _sections["Recommended Actions This Week"].strip()
             # Parse: "- **TIMELINE**: Action text — Owner: Name"
             _action_items = _re.findall(
-                r'-\s+\*\*(.+?)\*\*:\s*(.+?)\s*(?:—|--|--)\s*Owner:\s*(.+?)\s*$',
+                r'-\s+\*\*(.+?)\*\*:\s*(.+?)\s*(?:\u2014|--|--)\s*Owner:\s*(.+?)\s*$',
                 _actions_text,
                 _re.MULTILINE,
             )
@@ -372,8 +383,21 @@ with tab1:
                         f"*Owner: {_owner.strip()}*"
                     )
                     st.caption("")  # spacing between actions
-            else:
+            elif _actions_text:
                 st.markdown(_actions_text)
+            else:
+                # Fallback: render actions directly from OPPORTUNITY_META
+                _timeline_order = ["IMMEDIATE (this week)", "SHORT TERM (this month)", "MEDIUM TERM (this quarter)"]
+                for _tl in _timeline_order:
+                    for _opp_id, _meta in OPPORTUNITY_META.items():
+                        if _meta.get("timeline") == _tl:
+                            _pi = "🔴" if "IMMEDIATE" in _tl else "🟠" if "SHORT" in _tl else "🔵"
+                            st.markdown(
+                                f"{_pi} **{_tl}**  \n"
+                                f"{_meta['action']}  \n"
+                                f"*Owner: {_meta['owner']}*"
+                            )
+                            st.caption("")
             st.divider()
 
         # --- Watch List — Emerging Patterns (table) ---
