@@ -112,7 +112,7 @@ def run_agent():
 
             for block in assistant_content:
                 if block.type == "text":
-                    log_step("thinking", block.text[:500])
+                    log_step("thinking", block.text[:2000])
 
                 elif block.type == "tool_use":
                     tool_name = block.name
