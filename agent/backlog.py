@@ -201,11 +201,23 @@ def update_backlog(df):
         if current_value is None:
             continue
 
-        # Append to signal history
-        opp["signal_history"].append({
-            "week": datetime.now().strftime("%Y-%m-%d"),
-            "value": current_value,
-        })
+        # Append to signal history using the latest week number from the data
+        latest_week = int(df["week"].max()) if "week" in df.columns else None
+        week_label = f"W{latest_week}" if latest_week is not None else datetime.now().strftime("%Y-%m-%d")
+
+        # Avoid duplicate entries for the same week
+        existing_weeks = {h["week"] for h in opp["signal_history"]}
+        if week_label in existing_weeks:
+            # Update the existing entry instead of appending
+            for h in opp["signal_history"]:
+                if h["week"] == week_label:
+                    h["value"] = current_value
+                    break
+        else:
+            opp["signal_history"].append({
+                "week": week_label,
+                "value": current_value,
+            })
 
         # Check if at target
         target = sig_def["target"]

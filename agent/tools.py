@@ -681,8 +681,28 @@ def generate_brief(findings=None):
 
     data_quality = _safe_get("data_quality", check_data_quality)
     anomaly_result = _safe_get("anomalies", flag_anomalies)
-    trends = _safe_get("weekly_trends", get_weekly_trends)
     nlp = _safe_get("nlp", analyze_customer_messages)
+
+    # Weekly trends need stricter validation: the comparison dict must
+    # contain all expected metric keys with nested prior_week/current_week
+    # values.  Claude sometimes restructures or drops keys, so always
+    # fall back to the deterministic tool when the data looks incomplete.
+    _required_wow_keys = {
+        "ticket_volume", "avg_cost_per_ticket", "avg_csat",
+        "resolution_rate", "escalation_rate",
+        "chatbot_containment_pct", "phone_ticket_pct",
+    }
+    trends_candidate = _safe_get("weekly_trends", get_weekly_trends)
+    _comp = trends_candidate.get("comparison", {})
+    if not _required_wow_keys.issubset(_comp.keys()) or not all(
+        isinstance(_comp.get(k), dict)
+        and "prior_week" in _comp[k]
+        and "current_week" in _comp[k]
+        for k in _required_wow_keys
+    ):
+        trends = get_weekly_trends()
+    else:
+        trends = trends_candidate
 
     # Opportunities: expect a list, fall back to calling all 5
     opp_names = ["chatbot_deflection", "agent_copilot", "urgent_routing", "phone_deflection", "bpo_vendor_b"]
