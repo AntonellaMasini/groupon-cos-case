@@ -364,19 +364,14 @@ with tab1:
                 _re.MULTILINE,
             )
             if _action_items:
-                _action_rows = []
                 for _timeline, _action_desc, _owner in _action_items:
                     _priority_icon = "🔴" if "IMMEDIATE" in _timeline else "🟠" if "SHORT" in _timeline else "🔵"
-                    _action_rows.append({
-                        "Priority": f"{_priority_icon} {_timeline}",
-                        "Action": _action_desc.strip(),
-                        "Owner": _owner.strip(),
-                    })
-                st.dataframe(
-                    pd.DataFrame(_action_rows),
-                    use_container_width=True,
-                    hide_index=True,
-                )
+                    st.markdown(
+                        f"{_priority_icon} **{_timeline}**  \n"
+                        f"{_action_desc.strip()}  \n"
+                        f"*Owner: {_owner.strip()}*"
+                    )
+                    st.caption("")  # spacing between actions
             else:
                 st.markdown(_actions_text)
             st.divider()
