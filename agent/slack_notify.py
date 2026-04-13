@@ -27,7 +27,7 @@ def build_message(backlog_summary, weekly_stats, watch_list, brief_url="http://l
     # ── Header ────────────────────────────────────────────────
     blocks.append({
         "type": "header",
-        "text": {"type": "plain_text", "text": f"Groupon Ops Intelligence Brief — Week {week_num}"}
+        "text": {"type": "plain_text", "text": f"Ops Intelligence Brief — Week {week_num}"}
     })
     blocks.append({"type": "divider"})
 
